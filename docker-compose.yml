@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD in .env}
+      USER_SERVICE_DB_PASSWORD: ${USER_SERVICE_DB_PASSWORD:?Configure USER_SERVICE_DB_PASSWORD in .env}
+      GAME_SERVICE_DB_PASSWORD: ${GAME_SERVICE_DB_PASSWORD:?Configure GAME_SERVICE_DB_PASSWORD in .env}
+      RANK_SERVICE_DB_PASSWORD: ${RANK_SERVICE_DB_PASSWORD:?Configure RANK_SERVICE_DB_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - ./database/schemas:/database/schemas:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
