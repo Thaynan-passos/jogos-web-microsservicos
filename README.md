@@ -1,18 +1,17 @@
 # 🎮 Plataforma de Jogos Web (Microsserviços)
 
-Sistema web completo para gerenciamento e execução de jogos simples em HTML5 Canvas, desenvolvido como projeto para a disciplina de **Desenvolvimento de Sistemas Web II**.
+Sistema web para gerenciamento e execução de jogos simples em HTML5 Canvas, desenvolvido como projeto para a disciplina de **Desenvolvimento de Sistemas Web II**.
 
-A aplicação adota a arquitetura de **Microsserviços**, com rotas centralizadas por um **API Gateway**, frontend reativo em **React** e persistência de dados isolada para cada domínio.
-
----
+A aplicação adota uma arquitetura de **microsserviços**, com rotas centralizadas por um API Gateway (ainda em desenvolvimento), frontend em React e persistência de dados isolada por domínio.
 
 ## Tecnologias
 
 - Frontend: React, TypeScript e Vite.
-- Persistência: PostgreSQL 17 e Docker Compose.
-- Backend: User Service em FastAPI; Rank Service com esqueleto FastAPI; Game Service e API Gateway ainda em desenvolvimento.
+- Banco de dados: PostgreSQL 17.
+- Backend: User Service em FastAPI; Rank Service com esqueleto FastAPI.
+- Orquestração local: Docker Compose.
 
-## 🏛️ Arquitetura do Sistema
+## Arquitetura e estado atual
 
 O objetivo é ter três microsserviços, cada um responsável pelo seu banco de dados. O PostgreSQL é compartilhado como servidor, mas cada serviço tem um banco e um usuário próprios. Não há chaves estrangeiras entre bancos: referências a usuários e partidas em outros serviços são identificadores UUID validados pelas APIs.
 
@@ -22,20 +21,116 @@ Frontend → API Gateway → User Service → banco user_service
                        → Rank Service → banco rank_service
 ```
 
-O Docker Compose inicia o frontend, o PostgreSQL, o User Service e o esqueleto do Rank Service. Node.js é usado dentro da imagem Docker para compilar o frontend; não é necessário instalá-lo na máquina. O Rank Service expõe `/health` e o placeholder `GET /api/v1/rankings`, que responde HTTP 501 até sua implementação; consulte a documentação OpenAPI para ver a rota. Game Service e API Gateway também estão em desenvolvimento. O frontend atual executa os jogos localmente e não salva partidas ou pontuações nos serviços.
+O Docker Compose inicia o frontend, o PostgreSQL, o User Service e o esqueleto do Rank Service. O Node.js é usado dentro da imagem Docker para compilar o frontend; não é necessário instalá-lo para executar a aplicação com Compose.
 
-## Banco de dados local
+O frontend atual executa os jogos localmente e não salva partidas ou pontuações nos serviços. O Rank Service expõe `/health` e `GET /api/v1/rankings`, que responde HTTP 501 até sua implementação. O Game Service e o API Gateway ainda estão em desenvolvimento.
 
-1. Instale o Docker Desktop e inicie o Docker.
-2. Copie `.env.example` para `.env`. Os valores do exemplo são apenas para desenvolvimento local; use senhas fortes em outros ambientes.
-3. Na raiz do repositório, execute:
+## Executar localmente com Docker Compose
 
-   ```sh
-   docker compose up --build -d
-   ```
+### 1. Pré-requisitos
 
-O frontend fica disponível em `http://localhost:5173` (ou na porta definida por `FRONTEND_PORT`), a API do User Service em `http://localhost:8001` com documentação em `http://localhost:8001/docs`, e o esqueleto do Rank Service em `http://localhost:8003` com documentação em `http://localhost:8003/docs` (as portas podem ser alteradas no `.env`). O PostgreSQL escuta apenas em `127.0.0.1:5432` por padrão. Os bancos `user_service`, `game_service` e `rank_service` são criados com usuários e senhas individuais. O User Service usa o banco `user_service`; o esqueleto atual do Rank Service ainda não se conecta ao banco. Ferramentas executadas na máquina podem usar `localhost` e a porta definida em `POSTGRES_PORT`.
+- Git, caso ainda não tenha uma cópia do repositório.
+- Docker Desktop instalado e em execução, com Docker Compose v2.
 
-Os esquemas iniciais do catálogo de jogos e do ranking estão em `database/schemas/`. O banco de usuários é atualizado pelas migrações Alembic do User Service. O catálogo começa com os três jogos do frontend. `user_id` e `session_id` no banco de ranking não têm chaves estrangeiras, pois os dados pertencem a bancos de outros serviços.
+### 2. Obter o projeto
 
-Os scripts em `database/init/` são executados somente quando o volume do PostgreSQL é criado pela primeira vez. Alterações futuras devem ser aplicadas como migrações versionadas; editar os scripts de inicialização não atualiza um volume existente. O User Service aplica suas migrações Alembic ao iniciar. `docker compose down` preserva os dados. **`docker compose down -v` apaga os bancos e todos os dados locais.**
+Se ainda não tiver o repositório, clone-o e entre na pasta:
+
+```sh
+git clone https://github.com/Thaynan-passos/jogos-web-microsservicos.git
+cd jogos-web-microsservicos
+```
+
+### 3. Criar e configurar o arquivo de ambiente
+
+Na raiz do projeto, crie o arquivo `.env` a partir do exemplo.
+
+No PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+No macOS/Linux:
+
+```sh
+cp .env.example .env
+```
+
+Abra `.env` e substitua `SECRET_KEY=replace-with-a-random-32-byte-secret` por uma chave aleatória. Os valores de senha do exemplo servem apenas para desenvolvimento local; use senhas fortes e exclusivas fora desse ambiente. Não compartilhe nem versione o arquivo `.env`.
+
+As portas padrão são frontend `5173`, User Service `8001`, Rank Service `8003` e PostgreSQL `5432`. Se alguma já estiver ocupada, altere a variável correspondente no `.env`.
+
+### 4. Construir e iniciar os serviços
+
+Na raiz do repositório, execute:
+
+```sh
+docker compose up --build -d
+```
+
+Na primeira execução, o Docker baixa as imagens e constrói os serviços. Aguarde até que os contêineres estejam iniciados e verifique o estado:
+
+```sh
+docker compose ps
+```
+
+### 5. Acessar e verificar
+
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- User Service — documentação interativa: [http://localhost:8001/docs](http://localhost:8001/docs)
+- User Service — verificação de saúde: [http://localhost:8001/health](http://localhost:8001/health)
+- Rank Service — documentação interativa: [http://localhost:8003/docs](http://localhost:8003/docs)
+- Rank Service — verificação de saúde: [http://localhost:8003/health](http://localhost:8003/health)
+
+As portas podem ser diferentes se você as alterou no `.env`. O PostgreSQL, por padrão, fica disponível apenas localmente em `127.0.0.1:5432`.
+
+### 6. Consultar logs
+
+Para acompanhar os logs de todos os serviços:
+
+```sh
+docker compose logs -f
+```
+
+Para consultar apenas um serviço, informe seu nome, por exemplo:
+
+```sh
+docker compose logs -f user-service
+```
+
+Pressione `Ctrl+C` para encerrar a visualização dos logs; isso não encerra os contêineres.
+
+### 7. Parar os serviços
+
+Para parar e remover os contêineres e a rede, preservando os dados do banco:
+
+```sh
+docker compose down
+```
+
+Para iniciar novamente depois, use `docker compose up -d`.
+
+> **Atenção:** `docker compose down -v` também remove o volume do PostgreSQL e apaga todos os dados locais. Os scripts de `database/init/` são executados somente quando esse volume é criado pela primeira vez; editar esses scripts não altera um banco já existente.
+
+## Banco de dados
+
+Os bancos `user_service`, `game_service` e `rank_service` são criados com usuários e senhas individuais. O User Service usa `user_service` e aplica suas migrações Alembic ao iniciar. Os esquemas iniciais do catálogo de jogos e do ranking estão em `database/schemas/`; o catálogo começa com os três jogos do frontend. O esqueleto atual do Rank Service ainda não se conecta ao banco.
+
+## Desenvolvimento do frontend sem contêiner
+
+Esse modo requer Node.js e npm instalados. Mantenha os serviços de backend e o banco iniciados com Docker Compose e pare o frontend em contêiner para liberar a porta:
+
+```sh
+docker compose up -d postgres user-service rank-service
+docker compose stop frontend
+cd frontend
+npm ci
+npm run dev
+```
+
+O Vite informa no terminal o endereço local do frontend. Para voltar a usar o frontend em contêiner, encerre o Vite com `Ctrl+C` e execute, na raiz do projeto:
+
+```sh
+docker compose start frontend
+```
