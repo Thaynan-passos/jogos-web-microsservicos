@@ -1,14 +1,15 @@
 SET ROLE user_service;
 
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) NOT NULL CHECK (length(trim(name)) BETWEEN 2 AND 100),
-    username VARCHAR(30) NOT NULL CHECK (username ~ '^[a-zA-Z0-9_]{3,30}$'),
-    email VARCHAR(320) NOT NULL,
-    password_hash TEXT NOT NULL CHECK (length(password_hash) > 0),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id UUID NOT NULL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    hashed_password VARCHAR(255) NOT NULL,
+    is_active BOOLEAN NOT NULL,
+    is_admin BOOLEAN NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE UNIQUE INDEX users_username_lower_unique ON users (lower(username));
-CREATE UNIQUE INDEX users_email_lower_unique ON users (lower(email));
+CREATE UNIQUE INDEX ix_users_email ON users (email);
+CREATE UNIQUE INDEX ix_users_username ON users (username);

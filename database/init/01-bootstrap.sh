@@ -20,6 +20,5 @@ SELECT format('CREATE DATABASE rank_service OWNER rank_service') \gexec
 REVOKE ALL ON DATABASE rank_service FROM PUBLIC;
 SQL
 
-psql --username "$POSTGRES_USER" --dbname user_service --file /database/schemas/user-service.sql
 psql --username "$POSTGRES_USER" --dbname game_service --file /database/schemas/game-service.sql
 psql --username "$POSTGRES_USER" --dbname rank_service --file /database/schemas/rank-service.sql

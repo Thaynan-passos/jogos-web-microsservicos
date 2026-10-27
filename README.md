@@ -10,7 +10,7 @@ A aplicação adota a arquitetura de **Microsserviços**, com rotas centralizada
 
 - Frontend: React, TypeScript e Vite.
 - Persistência: PostgreSQL 17 e Docker Compose.
-- Backend, API Gateway e integração dos jogos com os serviços: ainda em desenvolvimento.
+- Backend: User Service em FastAPI; Game Service, Rank Service e API Gateway ainda em desenvolvimento.
 
 ## 🏛️ Arquitetura do Sistema
 
@@ -22,7 +22,7 @@ Frontend → API Gateway → User Service → banco user_service
                        → Rank Service → banco rank_service
 ```
 
-O Docker Compose deste repositório inicializa **somente o PostgreSQL**. Os diretórios dos serviços ainda não contêm APIs, e o frontend atual não salva partidas ou pontuações no banco.
+O Docker Compose inicia o frontend, o PostgreSQL e o User Service. Node.js é usado dentro da imagem Docker para compilar o frontend; não é necessário instalá-lo na máquina. Game Service, Rank Service e API Gateway ainda não têm APIs implementadas; o frontend atual executa os jogos localmente e não salva partidas ou pontuações nos serviços.
 
 ## Banco de dados local
 
@@ -31,11 +31,11 @@ O Docker Compose deste repositório inicializa **somente o PostgreSQL**. Os dire
 3. Na raiz do repositório, execute:
 
    ```sh
-   docker compose up -d
+   docker compose up --build -d
    ```
 
-O servidor escuta apenas em `127.0.0.1:5432`. Os bancos `user_service`, `game_service` e `rank_service` são criados com usuários e senhas individuais. Para serviços dentro do Compose, o host do banco é `postgres`; ferramentas executadas na máquina podem usar `localhost` e a porta definida em `POSTGRES_PORT`.
+O frontend fica disponível em `http://localhost:5173` (ou na porta definida por `FRONTEND_PORT`), e a API do User Service em `http://localhost:8001`, com documentação interativa em `http://localhost:8001/docs`. O PostgreSQL escuta apenas em `127.0.0.1:5432` por padrão. Os bancos `user_service`, `game_service` e `rank_service` são criados com usuários e senhas individuais. O User Service usa o banco `user_service`; ferramentas executadas na máquina podem usar `localhost` e a porta definida em `POSTGRES_PORT`.
 
-Os esquemas iniciais estão em `database/schemas/`: usuários, catálogo e sessões de jogos, e pontuações. O catálogo começa com os três jogos do frontend. `user_id` e `session_id` no banco de ranking não têm chaves estrangeiras, pois os dados pertencem a bancos de outros serviços.
+Os esquemas iniciais do catálogo de jogos e do ranking estão em `database/schemas/`. O banco de usuários é atualizado pelas migrações Alembic do User Service. O catálogo começa com os três jogos do frontend. `user_id` e `session_id` no banco de ranking não têm chaves estrangeiras, pois os dados pertencem a bancos de outros serviços.
 
-Os scripts em `database/init/` são executados somente quando o volume do PostgreSQL é criado pela primeira vez. Alterações futuras devem ser aplicadas como migrações versionadas; editar os scripts de inicialização não atualiza um volume existente. `docker compose down` preserva os dados. **`docker compose down -v` apaga os bancos e todos os dados locais.**
+Os scripts em `database/init/` são executados somente quando o volume do PostgreSQL é criado pela primeira vez. Alterações futuras devem ser aplicadas como migrações versionadas; editar os scripts de inicialização não atualiza um volume existente. O User Service aplica suas migrações Alembic ao iniciar. `docker compose down` preserva os dados. **`docker compose down -v` apaga os bancos e todos os dados locais.**
