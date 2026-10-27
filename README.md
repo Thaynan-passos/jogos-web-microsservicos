@@ -10,7 +10,7 @@ A aplicação adota a arquitetura de **Microsserviços**, com rotas centralizada
 
 - Frontend: React, TypeScript e Vite.
 - Persistência: PostgreSQL 17 e Docker Compose.
-- Backend: User Service em FastAPI; Game Service, Rank Service e API Gateway ainda em desenvolvimento.
+- Backend: User Service em FastAPI; Rank Service com esqueleto FastAPI; Game Service e API Gateway ainda em desenvolvimento.
 
 ## 🏛️ Arquitetura do Sistema
 
@@ -22,7 +22,7 @@ Frontend → API Gateway → User Service → banco user_service
                        → Rank Service → banco rank_service
 ```
 
-O Docker Compose inicia o frontend, o PostgreSQL e o User Service. Node.js é usado dentro da imagem Docker para compilar o frontend; não é necessário instalá-lo na máquina. Game Service, Rank Service e API Gateway ainda não têm APIs implementadas; o frontend atual executa os jogos localmente e não salva partidas ou pontuações nos serviços.
+O Docker Compose inicia o frontend, o PostgreSQL, o User Service e o esqueleto do Rank Service. Node.js é usado dentro da imagem Docker para compilar o frontend; não é necessário instalá-lo na máquina. O Rank Service expõe `/health` e o placeholder `GET /api/v1/rankings`, que responde HTTP 501 até sua implementação; consulte a documentação OpenAPI para ver a rota. Game Service e API Gateway também estão em desenvolvimento. O frontend atual executa os jogos localmente e não salva partidas ou pontuações nos serviços.
 
 ## Banco de dados local
 
@@ -34,7 +34,7 @@ O Docker Compose inicia o frontend, o PostgreSQL e o User Service. Node.js é us
    docker compose up --build -d
    ```
 
-O frontend fica disponível em `http://localhost:5173` (ou na porta definida por `FRONTEND_PORT`), e a API do User Service em `http://localhost:8001`, com documentação interativa em `http://localhost:8001/docs`. O PostgreSQL escuta apenas em `127.0.0.1:5432` por padrão. Os bancos `user_service`, `game_service` e `rank_service` são criados com usuários e senhas individuais. O User Service usa o banco `user_service`; ferramentas executadas na máquina podem usar `localhost` e a porta definida em `POSTGRES_PORT`.
+O frontend fica disponível em `http://localhost:5173` (ou na porta definida por `FRONTEND_PORT`), a API do User Service em `http://localhost:8001` com documentação em `http://localhost:8001/docs`, e o esqueleto do Rank Service em `http://localhost:8003` com documentação em `http://localhost:8003/docs` (as portas podem ser alteradas no `.env`). O PostgreSQL escuta apenas em `127.0.0.1:5432` por padrão. Os bancos `user_service`, `game_service` e `rank_service` são criados com usuários e senhas individuais. O User Service usa o banco `user_service`; o esqueleto atual do Rank Service ainda não se conecta ao banco. Ferramentas executadas na máquina podem usar `localhost` e a porta definida em `POSTGRES_PORT`.
 
 Os esquemas iniciais do catálogo de jogos e do ranking estão em `database/schemas/`. O banco de usuários é atualizado pelas migrações Alembic do User Service. O catálogo começa com os três jogos do frontend. `user_id` e `session_id` no banco de ranking não têm chaves estrangeiras, pois os dados pertencem a bancos de outros serviços.
 
