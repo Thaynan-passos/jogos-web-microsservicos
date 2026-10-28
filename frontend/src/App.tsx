@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import './App.css'
 
 type GameId = 'tic-tac-toe' | 'memory' | 'rps'
 type Player = 'X' | 'O'
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1').replace(/\/$/, '')
+const ACCESS_TOKEN_KEY = 'playground_access_token'
 
 const games: { id: GameId; icon: string; title: string; description: string; players: string }[] = [
   {
@@ -52,6 +55,14 @@ function getComputerMove(options: string[]) {
 }
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => sessionStorage.getItem(ACCESS_TOKEN_KEY) !== null,
+  )
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [loginError, setLoginError] = useState('')
   const [activeGame, setActiveGame] = useState<GameId>('tic-tac-toe')
   const [board, setBoard] = useState<Array<Player | null>>(Array(9).fill(null))
   const [turn, setTurn] = useState<Player>('X')
@@ -71,6 +82,58 @@ function App() {
     .map((line) => line.every((index) => board[index] && board[index] === board[line[0]]) ? board[line[0]] : null)
     .find(Boolean)
   const isDraw = !winner && board.every(Boolean)
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setIsLoggingIn(true)
+    setLoginError('')
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+      })
+      const payload: unknown = await response.json()
+
+      if (!response.ok) {
+        setLoginError(
+          response.status === 401
+            ? 'Usuário ou senha não conferem. Confira seus dados e tente novamente.'
+            : 'Não foi possível entrar agora. Tente novamente em instantes.',
+        )
+        return
+      }
+
+      if (
+        typeof payload !== 'object' ||
+        payload === null ||
+        !('access_token' in payload) ||
+        typeof payload.access_token !== 'string'
+      ) {
+        setLoginError('O servidor retornou uma resposta inesperada. Tente novamente.')
+        return
+      }
+
+      sessionStorage.setItem(ACCESS_TOKEN_KEY, payload.access_token)
+      setPassword('')
+      setIsAuthenticated(true)
+    } catch (error) {
+      setLoginError(
+        error instanceof TypeError
+          ? 'Não foi possível conectar ao servidor. Verifique se o User Service está ativo.'
+          : 'Não foi possível concluir o login. Tente novamente.',
+      )
+    } finally {
+      setIsLoggingIn(false)
+    }
+  }
+
+  function handleLogout() {
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+    setPassword('')
+    setIsAuthenticated(false)
+  }
 
   function playCell(index: number) {
     if (board[index] || winner || isDraw) return
@@ -242,11 +305,102 @@ function App() {
     )
   }
 
+  if (!isAuthenticated) {
+    return (
+      <main className="login-page">
+        <header className="login-topbar">
+          <a className="brand" href="#" aria-label="Playground início">
+            <span className="brand-icon">P</span> playground<span className="brand-dot">.</span>
+          </a>
+          <span className="login-topbar-note">UM INTERVALO BEM JOGADO</span>
+        </header>
+
+        <div className="login-layout">
+          <section className="login-intro" aria-labelledby="login-title">
+            <span className="login-kicker"><span>✦</span> SEU CANTINHO DE DIVERSÃO</span>
+            <h1 id="login-title">Boas jogadas<br />começam com<br /><span>um olá.</span></h1>
+            <p>Entre para continuar sua pausa e escolher o próximo desafio.</p>
+            <div className="login-game-preview" aria-hidden="true">
+              <span className="preview-tile preview-purple">✕</span>
+              <span className="preview-tile preview-yellow">◉</span>
+              <span className="preview-tile preview-green">✦</span>
+              <span className="preview-sparkle">✳</span>
+            </div>
+            <span className="login-intro-caption">JOGUE NO SEU RITMO · DIVIRTA-SE</span>
+          </section>
+
+          <section className="login-card" aria-label="Entrar na sua conta">
+            <div className="login-card-icon" aria-hidden="true">✦</div>
+            <span className="login-card-eyebrow">BEM-VINDO DE VOLTA</span>
+            <h2>Entre na sua conta</h2>
+            <p className="login-card-description">Que bom ter você por aqui. Vamos jogar?</p>
+
+            <form className="login-form" onSubmit={handleLogin}>
+              <label htmlFor="username">Usuário ou e-mail</label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                placeholder="Como podemos te chamar?"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                required
+              />
+
+              <div className="password-label-row">
+                <label htmlFor="password">Senha</label>
+              </div>
+              <div className="password-input-wrap">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="Digite sua senha"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                />
+                <button
+                  className="password-toggle"
+                  type="button"
+                  onClick={() => setShowPassword((current) => !current)}
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? 'Ocultar' : 'Mostrar'}
+                </button>
+              </div>
+
+              {loginError && <p className="login-error" role="alert">{loginError}</p>}
+
+              <button className="login-submit" type="submit" disabled={isLoggingIn}>
+                {isLoggingIn ? 'Entrando...' : 'Entrar'}
+                {!isLoggingIn && <span aria-hidden="true">→</span>}
+              </button>
+            </form>
+
+            <p className="login-security-note"><span aria-hidden="true">⌑</span> Seus dados são protegidos com segurança.</p>
+          </section>
+        </div>
+
+        <footer className="login-footer">
+          <span>FEITO PARA UMA PAUSA FELIZ <span className="footer-heart">♥</span></span>
+          <span>ESCOLHA · JOGUE · REPITA</span>
+        </footer>
+      </main>
+    )
+  }
+
   return (
     <main className="arcade">
       <header className="topbar">
         <a className="brand" href="#" aria-label="Playground início"><span className="brand-icon">P</span> playground<span className="brand-dot">.</span></a>
-        <span className="topbar-note"><span className="online-dot" /> diversão sem complicação</span>
+        <div className="topbar-actions">
+          <span className="topbar-note"><span className="online-dot" /> diversão sem complicação</span>
+          <button className="logout-button" type="button" onClick={handleLogout}>Sair</button>
+        </div>
       </header>
 
       <section className="welcome">

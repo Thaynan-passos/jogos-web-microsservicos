@@ -23,7 +23,7 @@ Frontend → API Gateway → User Service → banco user_service
 
 O Docker Compose inicia o frontend, o PostgreSQL, o User Service e o esqueleto do Rank Service. O Node.js é usado dentro da imagem Docker para compilar o frontend; não é necessário instalá-lo para executar a aplicação com Compose.
 
-O frontend atual executa os jogos localmente e não salva partidas ou pontuações nos serviços. O Rank Service expõe `/health` e `GET /api/v1/rankings`, que responde HTTP 501 até sua implementação. O Game Service e o API Gateway ainda estão em desenvolvimento.
+O frontend autentica usuários pelo User Service e executa os jogos localmente; partidas e pontuações ainda não são salvas nos serviços. O Rank Service expõe `/health` e `GET /api/v1/rankings`, que responde HTTP 501 até sua implementação. O Game Service e o API Gateway ainda estão em desenvolvimento.
 
 ## Executar localmente com Docker Compose
 
@@ -78,6 +78,7 @@ docker compose ps
 ### 5. Acessar e verificar
 
 - Frontend: [http://localhost:5173](http://localhost:5173)
+- Login do frontend: usa `POST /api/v1/auth/login` no User Service, disponível em `http://localhost:8001` por padrão. Em desenvolvimento, configure `VITE_API_BASE_URL` se a API estiver em outro endereço.
 - User Service — documentação interativa: [http://localhost:8001/docs](http://localhost:8001/docs)
 - User Service — verificação de saúde: [http://localhost:8001/health](http://localhost:8001/health)
 - Rank Service — documentação interativa: [http://localhost:8003/docs](http://localhost:8003/docs)

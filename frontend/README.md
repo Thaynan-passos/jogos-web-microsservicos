@@ -1,32 +1,28 @@
-# React + TypeScript + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Interface do Playground em React, TypeScript e Vite. A tela inicial solicita
+login ao User Service; após a autenticação, o usuário pode acessar os jogos
+locais: Jogo da Velha, Jogo da Memória e Pedra, Papel e Tesoura.
 
-Currently, two official plugins are available:
+## Executar em desenvolvimento
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Com o User Service iniciado, instale as dependências e execute o Vite:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm ci
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Por padrão, o frontend chama `http://localhost:8001/api/v1/auth/login`.
+Para usar outra URL base da API, defina `VITE_API_BASE_URL` no ambiente do
+Vite, por exemplo `http://localhost:8001/api/v1`.
+
+O token de acesso é mantido em `sessionStorage` durante a sessão da aba. O
+frontend não persiste partidas ou pontuações nos serviços.
+
+## Verificações
+
+```sh
+npm run build
+npm run lint
+```
