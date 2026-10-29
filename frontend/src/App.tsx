@@ -4,7 +4,7 @@ import './App.css'
 type GameId = 'tic-tac-toe' | 'memory' | 'rps'
 type Player = 'X' | 'O'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1').replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/$/, '')
 const ACCESS_TOKEN_KEY = 'playground_access_token'
 
 const games: { id: GameId; icon: string; title: string; description: string; players: string }[] = [
@@ -59,10 +59,14 @@ function App() {
     () => sessionStorage.getItem(ACCESS_TOKEN_KEY) !== null,
   )
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [isRegistering, setIsRegistering] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false)
   const [loginError, setLoginError] = useState('')
+  const [registrationError, setRegistrationError] = useState('')
   const [activeGame, setActiveGame] = useState<GameId>('tic-tac-toe')
   const [board, setBoard] = useState<Array<Player | null>>(Array(9).fill(null))
   const [turn, setTurn] = useState<Player>('X')
@@ -127,6 +131,54 @@ function App() {
     } finally {
       setIsLoggingIn(false)
     }
+  }
+
+  async function handleRegistration(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setIsCreatingAccount(true)
+    setRegistrationError('')
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), email: email.trim(), password }),
+      })
+
+      if (!response.ok) {
+        setRegistrationError(
+          response.status === 409
+            ? 'Este usuário ou e-mail já está cadastrado.'
+            : 'Não foi possível criar sua conta. Confira os dados e tente novamente.',
+        )
+        return
+      }
+
+      setPassword('')
+      setEmail('')
+      setRegistrationError('')
+      setIsRegistering(false)
+    } catch (error) {
+      setRegistrationError(
+        error instanceof TypeError
+          ? 'Não foi possível conectar ao servidor. Verifique se o User Service está ativo.'
+          : 'Não foi possível criar sua conta. Tente novamente.',
+      )
+    } finally {
+      setIsCreatingAccount(false)
+    }
+  }
+
+  function showRegistration() {
+    setRegistrationError('')
+    setLoginError('')
+    setIsRegistering(true)
+  }
+
+  function showLogin() {
+    setRegistrationError('')
+    setLoginError('')
+    setIsRegistering(false)
   }
 
   function handleLogout() {
@@ -319,7 +371,7 @@ function App() {
           <section className="login-intro" aria-labelledby="login-title">
             <span className="login-kicker"><span>✦</span> SEU CANTINHO DE DIVERSÃO</span>
             <h1 id="login-title">Boas jogadas<br />começam com<br /><span>um olá.</span></h1>
-            <p>Entre para continuar sua pausa e escolher o próximo desafio.</p>
+            <p>{isRegistering ? 'Crie seu espaço para guardar suas jogadas e continuar se divertindo.' : 'Entre para continuar sua pausa e escolher o próximo desafio.'}</p>
             <div className="login-game-preview" aria-hidden="true">
               <span className="preview-tile preview-purple">✕</span>
               <span className="preview-tile preview-yellow">◉</span>
@@ -329,26 +381,42 @@ function App() {
             <span className="login-intro-caption">JOGUE NO SEU RITMO · DIVIRTA-SE</span>
           </section>
 
-          <section className="login-card" aria-label="Entrar na sua conta">
+          <section className="login-card" aria-label={isRegistering ? 'Criar uma conta' : 'Entrar na sua conta'}>
             <div className="login-card-icon" aria-hidden="true">✦</div>
-            <span className="login-card-eyebrow">BEM-VINDO DE VOLTA</span>
-            <h2>Entre na sua conta</h2>
-            <p className="login-card-description">Que bom ter você por aqui. Vamos jogar?</p>
+            <span className="login-card-eyebrow">{isRegistering ? 'FAÇA PARTE DA TURMA' : 'BEM-VINDO DE VOLTA'}</span>
+            <h2>{isRegistering ? 'Crie sua conta' : 'Entre na sua conta'}</h2>
+            <p className="login-card-description">{isRegistering ? 'É rápido. Depois é só escolher um jogo.' : 'Que bom ter você por aqui. Vamos jogar?'}</p>
 
-            <form className="login-form" onSubmit={handleLogin}>
-              <label htmlFor="username">Usuário ou e-mail</label>
+            <form className="login-form" onSubmit={isRegistering ? handleRegistration : handleLogin}>
+              <label htmlFor="username">{isRegistering ? 'Nome de usuário' : 'Usuário ou e-mail'}</label>
               <input
                 id="username"
                 name="username"
                 type="text"
                 autoComplete="username"
-                placeholder="Como podemos te chamar?"
+                placeholder={isRegistering ? 'Escolha um nome para jogar' : 'Como podemos te chamar?'}
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 required
               />
 
-              <div className="password-label-row">
+              {isRegistering && (
+                <>
+                  <label className="form-field-spaced" htmlFor="email">E-mail</label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="seuemail@exemplo.com"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                  />
+                </>
+              )}
+
+              <div className={isRegistering ? 'password-label-row registration-password-label' : 'password-label-row'}>
                 <label htmlFor="password">Senha</label>
               </div>
               <div className="password-input-wrap">
@@ -373,14 +441,17 @@ function App() {
                 </button>
               </div>
 
-              {loginError && <p className="login-error" role="alert">{loginError}</p>}
+              {(loginError || registrationError) && <p className="login-error" role="alert">{loginError || registrationError}</p>}
 
-              <button className="login-submit" type="submit" disabled={isLoggingIn}>
-                {isLoggingIn ? 'Entrando...' : 'Entrar'}
-                {!isLoggingIn && <span aria-hidden="true">→</span>}
+              <button className="login-submit" type="submit" disabled={isRegistering ? isCreatingAccount : isLoggingIn}>
+                {isRegistering ? (isCreatingAccount ? 'Criando...' : 'Criar conta') : (isLoggingIn ? 'Entrando...' : 'Entrar')}
+                {!(isRegistering ? isCreatingAccount : isLoggingIn) && <span aria-hidden="true">→</span>}
               </button>
             </form>
 
+            <button className="login-switch" type="button" onClick={isRegistering ? showLogin : showRegistration}>
+              {isRegistering ? 'Já tenho uma conta · Entrar' : 'Ainda não tenho uma conta · Criar cadastro'}
+            </button>
             <p className="login-security-note"><span aria-hidden="true">⌑</span> Seus dados são protegidos com segurança.</p>
           </section>
         </div>
