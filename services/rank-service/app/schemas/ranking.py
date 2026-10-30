@@ -32,4 +32,3 @@ class RankingSummary(BaseModel):
     top_players: list[RankingEntryResponse]
     most_popular_game: str
     highest_score: int
-

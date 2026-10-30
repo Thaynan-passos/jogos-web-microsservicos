@@ -51,8 +51,6 @@ export function RegisterCard({ apiBaseUrl, onSwitchToLogin }: RegisterCardProps)
         }),
       })
 
-      const payload: unknown = await response.json()
-
       if (!response.ok) {
         if (response.status === 409) {
           setErrorMessage('Este nome de usuário ou e-mail já está em uso.')

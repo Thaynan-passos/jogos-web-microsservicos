@@ -30,4 +30,3 @@ class ResetPasswordRequest(BaseModel):
 class ResetPasswordResponse(BaseModel):
     success: bool
     message: str
-

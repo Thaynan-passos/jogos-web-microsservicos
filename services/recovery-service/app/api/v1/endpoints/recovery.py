@@ -1,10 +1,7 @@
-from datetime import datetime, timedelta, timezone
 import logging
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, status
 import httpx
-from jose import JWTError, jwt
-
 from app.core.config import settings
 from app.schemas.recovery import (
     RecoveryRequest,
@@ -14,13 +11,15 @@ from app.schemas.recovery import (
     VerifyTokenRequest,
     VerifyTokenResponse,
 )
+from fastapi import APIRouter, HTTPException, status
+from jose import JWTError, jwt
 
 logger = logging.getLogger("recovery_service")
 router = APIRouter(prefix="/recovery", tags=["recovery"])
 
 
 def create_recovery_token(email: str) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expire = now + timedelta(minutes=settings.RECOVERY_TOKEN_EXPIRE_MINUTES)
     to_encode = {
         "sub": email,
@@ -67,9 +66,7 @@ async def request_password_recovery(
     email_str = str(payload.email).lower().strip()
     token = create_recovery_token(email_str)
 
-    logger.info(
-        f"[PASSWORD RECOVERY] Código gerado para {email_str}: {token[:12]}..."
-    )
+    logger.info(f"[PASSWORD RECOVERY] Código gerado para {email_str}: {token[:12]}...")
 
     return RecoveryRequestResponse(
         message="Solicitação de recuperação gerada com sucesso. Em ambiente de desenvolvimento, utilize o token retornado para redefinir sua senha.",
@@ -109,7 +106,9 @@ async def reset_password(payload: ResetPasswordRequest) -> ResetPasswordResponse
     email = decode_recovery_token(payload.token)
 
     # Comunica com o User Service para aplicar a nova senha
-    target_url = f"{settings.USER_SERVICE_URL.rstrip('/')}/api/v1/auth/reset-password-internal"
+    target_url = (
+        f"{settings.USER_SERVICE_URL.rstrip('/')}/api/v1/auth/reset-password-internal"
+    )
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -141,4 +140,3 @@ async def reset_password(payload: ResetPasswordRequest) -> ResetPasswordResponse
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Não foi possível conectar ao User Service para concluir a redefinição de senha",
         )
-
