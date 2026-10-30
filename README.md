@@ -2,28 +2,32 @@
 
 Sistema web para gerenciamento e execução de jogos simples em HTML5 Canvas, desenvolvido como projeto para a disciplina de **Desenvolvimento de Sistemas Web II**.
 
-A aplicação adota uma arquitetura de **microsserviços**, com rotas centralizadas por um API Gateway (ainda em desenvolvimento), frontend em React e persistência de dados isolada por domínio.
+A aplicação adota uma arquitetura de **microsserviços**, com rotas centralizadas por um API Gateway (em planejamento), frontend em React e persistência de dados isolada por domínio.
 
 ## Tecnologias
 
-- Frontend: React, TypeScript e Vite.
+- Frontend: React 19, TypeScript e Vite.
 - Banco de dados: PostgreSQL 17.
-- Backend: User Service em FastAPI; Rank Service com esqueleto FastAPI.
+- Backend:
+  - User Service em FastAPI (autenticação JWT e usuários).
+  - Rank Service em FastAPI (classificação, pontuações e leaderboard).
+  - Recovery Service em FastAPI (recuperação e redefinição de senhas).
 - Orquestração local: Docker Compose.
 
 ## Arquitetura e estado atual
 
-O objetivo é ter três microsserviços, cada um responsável pelo seu banco de dados. O PostgreSQL é compartilhado como servidor, mas cada serviço tem um banco e um usuário próprios. Não há chaves estrangeiras entre bancos: referências a usuários e partidas em outros serviços são identificadores UUID validados pelas APIs.
+O objetivo é ter microsserviços autônomos, cada um responsável pelo seu domínio. O PostgreSQL é compartilhado como servidor físico, mas cada serviço tem um banco e um usuário próprios. Não há chaves estrangeiras entre bancos de serviços distintos: referências a usuários e partidas em outros serviços são identificadores UUID validados pelas APIs.
 
 ```text
-Frontend → API Gateway → User Service → banco user_service
-                       → Game Service → banco game_service
-                       → Rank Service → banco rank_service
+Frontend → API Gateway → User Service     → banco user_service
+                       → Game Service     → banco game_service
+                       → Rank Service     → banco rank_service
+                       → Recovery Service → integra com User Service
 ```
 
-O Docker Compose inicia o frontend, o PostgreSQL, o User Service e o esqueleto do Rank Service. O Node.js é usado dentro da imagem Docker para compilar o frontend; não é necessário instalá-lo para executar a aplicação com Compose.
+O Docker Compose inicia o frontend, o PostgreSQL, o User Service, o Rank Service e o Recovery Service. O Node.js é usado dentro da imagem Docker para compilar o frontend; não é necessário instalá-lo para executar a aplicação com Compose.
 
-O frontend autentica usuários pelo User Service e executa os jogos localmente; partidas e pontuações ainda não são salvas nos serviços. O Rank Service expõe `/health` e `GET /api/v1/rankings`, que responde HTTP 501 até sua implementação. O Game Service e o API Gateway ainda estão em desenvolvimento.
+O frontend autentica usuários pelo User Service, permite cadastro de novos usuários, recuperação de senha com tokens de segurança, exibe um **Rank Básico** na tela inicial de jogos e uma tela completa de **Leaderboard Detalhado** (com métricas, filtros por jogo, busca e tempos de conclusão).
 
 ## Executar localmente com Docker Compose
 
@@ -59,7 +63,12 @@ cp .env.example .env
 
 Abra `.env` e substitua `SECRET_KEY=replace-with-a-random-32-byte-secret` por uma chave aleatória. Os valores de senha do exemplo servem apenas para desenvolvimento local; use senhas fortes e exclusivas fora desse ambiente. Não compartilhe nem versione o arquivo `.env`.
 
-As portas padrão são frontend `5173`, User Service `8001`, Rank Service `8003` e PostgreSQL `5432`. Se alguma já estiver ocupada, altere a variável correspondente no `.env`.
+As portas padrão são:
+- Frontend: `5173`
+- User Service: `8001`
+- Rank Service: `8003`
+- Recovery Service: `8004`
+- PostgreSQL: `5432`
 
 ### 4. Construir e iniciar os serviços
 
@@ -77,14 +86,21 @@ docker compose ps
 
 ### 5. Acessar e verificar
 
-- Frontend: [http://localhost:5173](http://localhost:5173)
-- Login do frontend: usa `POST /api/v1/auth/login` no User Service, disponível em `http://localhost:8001` por padrão. Em desenvolvimento, configure `VITE_API_BASE_URL` se a API estiver em outro endereço.
-- User Service — documentação interativa: [http://localhost:8001/docs](http://localhost:8001/docs)
-- User Service — verificação de saúde: [http://localhost:8001/health](http://localhost:8001/health)
-- Rank Service — documentação interativa: [http://localhost:8003/docs](http://localhost:8003/docs)
-- Rank Service — verificação de saúde: [http://localhost:8003/health](http://localhost:8003/health)
+- **Frontend**: [http://localhost:5173](http://localhost:5173)
+  - Tela de Login, Cadastro de novos usuários e Recuperação de senha.
+  - Tela principal com Jogos e **Rank Básico**.
+  - Aba **Leaderboard**: Ranking complexo com filtros, estatísticas e busca.
+- **User Service**:
+  - Documentação interativa: [http://localhost:8001/docs](http://localhost:8001/docs)
+  - Verificação de saúde: [http://localhost:8001/health](http://localhost:8001/health)
+- **Rank Service**:
+  - Documentação interativa: [http://localhost:8003/docs](http://localhost:8003/docs)
+  - Verificação de saúde: [http://localhost:8003/health](http://localhost:8003/health)
+- **Recovery Service**:
+  - Documentação interativa: [http://localhost:8004/docs](http://localhost:8004/docs)
+  - Verificação de saúde: [http://localhost:8004/health](http://localhost:8004/health)
 
-As portas podem ser diferentes se você as alterou no `.env`. O PostgreSQL, por padrão, fica disponível apenas localmente em `127.0.0.1:5432`.
+O PostgreSQL, por padrão, fica disponível apenas localmente em `127.0.0.1:5432`.
 
 ### 6. Consultar logs
 
@@ -97,7 +113,7 @@ docker compose logs -f
 Para consultar apenas um serviço, informe seu nome, por exemplo:
 
 ```sh
-docker compose logs -f user-service
+docker compose logs -f recovery-service
 ```
 
 Pressione `Ctrl+C` para encerrar a visualização dos logs; isso não encerra os contêineres.
@@ -116,22 +132,4 @@ Para iniciar novamente depois, use `docker compose up -d`.
 
 ## Banco de dados
 
-Os bancos `user_service`, `game_service` e `rank_service` são criados com usuários e senhas individuais. O User Service usa `user_service` e aplica suas migrações Alembic ao iniciar. Os esquemas iniciais do catálogo de jogos e do ranking estão em `database/schemas/`; o catálogo começa com os três jogos do frontend. O esqueleto atual do Rank Service ainda não se conecta ao banco.
-
-## Desenvolvimento do frontend sem contêiner
-
-Esse modo requer Node.js e npm instalados. Mantenha os serviços de backend e o banco iniciados com Docker Compose e pare o frontend em contêiner para liberar a porta:
-
-```sh
-docker compose up -d postgres user-service rank-service
-docker compose stop frontend
-cd frontend
-npm ci
-npm run dev
-```
-
-O Vite informa no terminal o endereço local do frontend. Para voltar a usar o frontend em contêiner, encerre o Vite com `Ctrl+C` e execute, na raiz do projeto:
-
-```sh
-docker compose start frontend
-```
+Os bancos `user_service`, `game_service` e `rank_service` são criados com usuários e senhas individuais. O User Service usa `user_service` e aplica suas migrações Alembic ao iniciar. Os esquemas iniciais do catálogo de jogos e do ranking estão em `database/schemas/`.

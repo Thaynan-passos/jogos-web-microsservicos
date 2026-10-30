@@ -15,6 +15,11 @@ class UserLogin(BaseModel):
     password: str = Field(min_length=1)
 
 
+class UserResetPasswordInternal(BaseModel):
+    email: EmailStr
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class UserBatchRequest(BaseModel):
     user_ids: list[UUID] = Field(default_factory=list, max_length=100)
 

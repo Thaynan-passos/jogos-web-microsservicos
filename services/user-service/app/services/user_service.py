@@ -62,3 +62,16 @@ async def authenticate_user(db: AsyncSession, login: str, password: str) -> User
     if user is None or not verify_password(password, user.hashed_password):
         return None
     return user
+
+
+async def update_user_password(
+    db: AsyncSession, login_or_email: str, new_password: str
+) -> User | None:
+    user = await get_user_by_login(db, login_or_email)
+    if user is None:
+        return None
+    user.hashed_password = get_password_hash(new_password)
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user

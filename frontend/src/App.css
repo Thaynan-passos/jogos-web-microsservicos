@@ -1040,3 +1040,552 @@
     font-size: 10px;
   }
 }
+
+
+/* ==========================================================================
+   NOVOS ESTILOS: AUTENTICAÇÃO (CADASTRO / RECUPERAÇÃO), RANKING E LEADERBOARD
+   ========================================================================== */
+
+/* Alertas de Feedback */
+.auth-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.auth-alert-error {
+  background: #fff1f0;
+  border: 1px solid #ffccc7;
+  color: #cf1322;
+}
+
+.auth-alert-success {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #389e0d;
+}
+
+/* Links adicionais nos cards de autenticação */
+.password-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.forgot-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--purple);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.forgot-link-btn:hover {
+  color: #6347c6;
+}
+
+.auth-footer-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--purple);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+/* Topbar Navigation */
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-tab-btn {
+  background: none;
+  border: 1px solid transparent;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-tab-btn:hover {
+  color: var(--ink);
+  background: #f7f6f9;
+}
+
+.nav-tab-btn.active {
+  color: var(--purple);
+  background: #f3f0fd;
+  border-color: #ded6fa;
+}
+
+.user-greeting {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.user-greeting strong {
+  color: var(--ink);
+}
+
+/* ==========================================================================
+   RANK BÁSICO (Quick Ranking) NO DASHBOARD
+   ========================================================================== */
+.quick-ranking-card {
+  margin: 28px 0 36px;
+  background: linear-gradient(135deg, #ffffff 0%, #faf9fd 100%);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px 24px;
+  box-shadow: 0 4px 20px rgba(128, 99, 220, 0.05);
+}
+
+.quick-ranking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.quick-ranking-title-group h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+}
+
+.view-full-ranking-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #f3f0fd;
+  border: 1px solid #ded6fa;
+  border-radius: 10px;
+  color: var(--purple);
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-full-ranking-btn:hover {
+  background: var(--purple);
+  color: #fff;
+  border-color: var(--purple);
+  transform: translateY(-1px);
+}
+
+.quick-ranking-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.quick-ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.quick-ranking-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.quick-ranking-pos .medal-icon {
+  font-size: 20px;
+}
+
+.quick-ranking-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.quick-ranking-name {
+  font-size: 14px;
+  font-weight: 750;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-ranking-game {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.quick-ranking-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.quick-ranking-score .score-val {
+  font-size: 16px;
+  font-weight: 850;
+  color: var(--purple);
+  line-height: 1;
+}
+
+.quick-ranking-score .score-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   TELA DE RANKING COMPLEXO (Leaderboard Completo)
+   ========================================================================== */
+.leaderboard-page {
+  padding: 32px 0 64px;
+}
+
+.leaderboard-top {
+  margin-bottom: 28px;
+}
+
+.back-button {
+  background: none;
+  border: 1px solid var(--line);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background: #f7f6f9;
+  color: var(--ink);
+  border-color: #d8d4e0;
+}
+
+.leaderboard-title-block h1 {
+  margin: 6px 0 8px;
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 850;
+  letter-spacing: -1.5px;
+  color: var(--ink);
+}
+
+.leaderboard-title-block p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+/* Métricas do Topo */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.metric-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #f3f0fd;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.metric-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 20px;
+  font-weight: 850;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.metric-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Controles de Busca e Abas */
+.leaderboard-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.game-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.game-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.game-tab:hover {
+  background: #faf9fb;
+  color: var(--ink);
+}
+
+.game-tab.active {
+  background: var(--purple);
+  color: #fff;
+  border-color: var(--purple);
+}
+
+.search-and-sort {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-input {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--ink);
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--purple);
+}
+
+.sort-select {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--ink);
+  outline: none;
+  cursor: pointer;
+}
+
+.sort-select:focus {
+  border-color: var(--purple);
+}
+
+/* Tabela de Classificação */
+.leaderboard-table-wrap {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.leaderboard-table thead th {
+  background: #faf9fb;
+  padding: 14px 18px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.leaderboard-table tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  vertical-align: middle;
+}
+
+.leaderboard-row:last-child td {
+  border-bottom: none;
+}
+
+.leaderboard-row:hover td {
+  background: #fdfcfe;
+}
+
+.position-badge {
+  display: inline-block;
+  font-size: 15px;
+  font-weight: 800;
+  min-width: 28px;
+  text-align: center;
+}
+
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.player-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #f0ecfa;
+  color: var(--purple);
+  font-size: 11px;
+  font-weight: 850;
+  flex-shrink: 0;
+}
+
+.player-name {
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.game-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #f6f5f8;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.score-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #f3f0fd;
+  border: 1px solid #e1d8fa;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 850;
+  color: var(--purple);
+}
+
+.time-badge {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.winrate-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  background: #eefaf3;
+  color: #2b8256;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.date-cell {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px !important;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .leaderboard-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-and-sort {
+    flex-direction: column;
+  }
+  .topbar-nav {
+    display: none;
+  }
+}

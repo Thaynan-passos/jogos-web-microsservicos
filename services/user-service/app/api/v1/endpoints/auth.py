@@ -2,8 +2,19 @@ from typing import Annotated
 
 from app.api.dependencies import DatabaseSession
 from app.core.security import create_access_token
-from app.schemas.user import Token, UserCreate, UserLogin, UserResponse
-from app.services.user_service import authenticate_user, create_user, get_user_by_login
+from app.schemas.user import (
+    Token,
+    UserCreate,
+    UserLogin,
+    UserResetPasswordInternal,
+    UserResponse,
+)
+from app.services.user_service import (
+    authenticate_user,
+    create_user,
+    get_user_by_login,
+    update_user_password,
+)
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
@@ -77,3 +88,21 @@ async def login_form(
         extra_claims={"username": user.username, "is_admin": user.is_admin},
     )
     return Token(access_token=access_token)
+
+
+@router.post(
+    "/reset-password-internal",
+    summary="Internal endpoint to reset user password",
+    status_code=status.HTTP_200_OK,
+)
+async def reset_password_internal(
+    payload: UserResetPasswordInternal,
+    db: DatabaseSession,
+) -> dict[str, str]:
+    user = await update_user_password(db, str(payload.email), payload.new_password)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    return {"message": "Password successfully updated"}
