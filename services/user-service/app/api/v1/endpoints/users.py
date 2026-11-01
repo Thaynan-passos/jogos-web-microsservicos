@@ -18,7 +18,7 @@ async def read_user_by_id(user_id: UUID, db: DatabaseSession) -> UserResponse:
     user = await get_user_by_id(db, user_id)
     if user is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não encontrado"
         )
     return UserResponse.model_validate(user)
 

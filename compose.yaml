@@ -71,6 +71,29 @@ services:
       retries: 5
       start_period: 10s
 
+  game-service:
+    build:
+      context: ./services/game-service
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      POSTGRES_USER: game_service
+      POSTGRES_PASSWORD: ${GAME_SERVICE_DB_PASSWORD:?Configure GAME_SERVICE_DB_PASSWORD in .env}
+      POSTGRES_DB: game_service
+      POSTGRES_SERVER: postgres
+      POSTGRES_PORT: 5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${GAME_SERVICE_PORT:-8002}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   recovery-service:
     build:
       context: ./services/recovery-service

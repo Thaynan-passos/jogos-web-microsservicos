@@ -30,14 +30,14 @@ async def register(user_in: UserCreate, db: DatabaseSession) -> UserResponse:
         db, str(user_in.email)
     ):
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="User already exists"
+            status_code=status.HTTP_409_CONFLICT, detail="Usuário já existe"
         )
     try:
         user = await create_user(db, user_in)
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="User already exists"
+            status_code=status.HTTP_409_CONFLICT, detail="Usuário já existe"
         )
     return UserResponse.model_validate(user)
 
@@ -56,7 +56,7 @@ async def login_json(
     if user is None or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Nome de usuário ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(
@@ -80,7 +80,7 @@ async def login_form(
     if user is None or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Nome de usuário ou senha incorretos",
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(
@@ -103,6 +103,6 @@ async def reset_password_internal(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail="Usuário não encontrado",
         )
     return {"message": "Password successfully updated"}
