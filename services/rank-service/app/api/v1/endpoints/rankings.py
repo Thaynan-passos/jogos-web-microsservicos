@@ -1,26 +1,15 @@
-import uuid
 from datetime import UTC, datetime
 
+from app.db.session import get_db
+from app.models.ranking import RankingEntry
 from app.schemas.ranking import (
     RankingEntryCreate,
     RankingEntryResponse,
     RankingSummary,
 )
-from fastapi import APIRouter, Query, status
-from pydantic import BaseModel
-
-
-class RankingStoreEntry(BaseModel):
-    id: str
-    user_id: str
-    username: str
-    game_slug: str
-    score: int
-    duration_ms: int
-    achieved_at: datetime
-    matches_played: int = 1
-    win_rate: str = "100%"
-
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/rankings", tags=["rankings"])
 
@@ -32,80 +21,6 @@ GAME_NAMES = {
     "rps": "Pedra, Papel e Tesoura",
     "pedra-papel-tesoura": "Pedra, Papel e Tesoura",
 }
-
-# Base inicial com dados de exemplo realistas para demonstração e desenvolvimento
-INITIAL_ENTRIES: list[RankingStoreEntry] = [
-    RankingStoreEntry(
-        id="e1-velha-1",
-        user_id=str(uuid.uuid4()),
-        username="LucasMestre",
-        game_slug="tic-tac-toe",
-        score=450,
-        duration_ms=42000,
-        achieved_at=datetime(2026, 10, 29, 14, 20, tzinfo=UTC),
-        matches_played=18,
-        win_rate="89%",
-    ),
-    RankingStoreEntry(
-        id="e2-memoria-1",
-        user_id=str(uuid.uuid4()),
-        username="AnaMemoryQueen",
-        game_slug="memory",
-        score=820,
-        duration_ms=28500,
-        achieved_at=datetime(2026, 10, 29, 17, 10, tzinfo=UTC),
-        matches_played=24,
-        win_rate="95%",
-    ),
-    RankingStoreEntry(
-        id="e3-rps-1",
-        user_id=str(uuid.uuid4()),
-        username="GabrielTactics",
-        game_slug="rps",
-        score=380,
-        duration_ms=35000,
-        achieved_at=datetime(2026, 10, 30, 9, 45, tzinfo=UTC),
-        matches_played=15,
-        win_rate="80%",
-    ),
-    RankingStoreEntry(
-        id="e4-velha-2",
-        user_id=str(uuid.uuid4()),
-        username="Beatriz_Gamer",
-        game_slug="tic-tac-toe",
-        score=390,
-        duration_ms=48000,
-        achieved_at=datetime(2026, 10, 30, 11, 15, tzinfo=UTC),
-        matches_played=14,
-        win_rate="78%",
-    ),
-    RankingStoreEntry(
-        id="e5-memoria-2",
-        user_id=str(uuid.uuid4()),
-        username="DiegoCards",
-        game_slug="memory",
-        score=690,
-        duration_ms=34000,
-        achieved_at=datetime(2026, 10, 30, 12, 30, tzinfo=UTC),
-        matches_played=19,
-        win_rate="84%",
-    ),
-    RankingStoreEntry(
-        id="e6-rps-2",
-        user_id=str(uuid.uuid4()),
-        username="Mariana_RPS",
-        game_slug="rps",
-        score=340,
-        duration_ms=40000,
-        achieved_at=datetime(2026, 10, 30, 13, 0, tzinfo=UTC),
-        matches_played=12,
-        win_rate="75%",
-    ),
-]
-
-
-# Estado em memória compartilhada no processo
-ranking_store: list[RankingStoreEntry] = list(INITIAL_ENTRIES)
 
 
 def format_duration(ms: int) -> str:
@@ -130,45 +45,37 @@ def normalize_slug(slug: str) -> str:
 async def list_rankings(
     game_slug: str | None = Query(None, description="Filtrar por jogo específico"),
     limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> list[RankingEntryResponse]:
-
-    entries = ranking_store
-
+    query = select(RankingEntry)
     if game_slug and game_slug != "all":
-        norm_slug = normalize_slug(game_slug)
-        entries = [e for e in entries if normalize_slug(e.game_slug) == norm_slug]
-
-    sorted_entries = sorted(
-        entries,
-        key=lambda x: (-x.score, x.duration_ms),
+        query = query.where(RankingEntry.game_slug == normalize_slug(game_slug))
+    query = query.order_by(RankingEntry.score.desc(), RankingEntry.duration_ms).limit(
+        limit
     )
+    entries = (await db.scalars(query)).all()
+    return [
+        to_response(item, position) for position, item in enumerate(entries, start=1)
+    ]
 
-    result = []
 
-    for pos, item in enumerate(sorted_entries[:limit], start=1):
-        slug = item.game_slug
-
-        result.append(
-            RankingEntryResponse(
-                id=item.id,
-                position=pos,
-                user_id=item.user_id,
-                username=item.username,
-                game_slug=slug,
-                game_name=GAME_NAMES.get(
-                    slug,
-                    slug.replace("-", " ").title(),
-                ),
-                score=item.score,
-                duration_ms=item.duration_ms,
-                duration_formatted=format_duration(item.duration_ms),
-                achieved_at=item.achieved_at,
-                matches_played=item.matches_played,
-                win_rate=item.win_rate,
-            )
-        )
-
-    return result
+def to_response(item: RankingEntry, position: int) -> RankingEntryResponse:
+    return RankingEntryResponse(
+        id=str(item.id),
+        position=position,
+        user_id=str(item.user_id),
+        username=item.username,
+        game_slug=item.game_slug,
+        game_name=GAME_NAMES.get(
+            item.game_slug, item.game_slug.replace("-", " ").title()
+        ),
+        score=item.score,
+        duration_ms=item.duration_ms,
+        duration_formatted=format_duration(item.duration_ms),
+        achieved_at=item.achieved_at,
+        matches_played=item.matches_played,
+        win_rate=item.win_rate,
+    )
 
 
 @router.post(
@@ -177,19 +84,16 @@ async def list_rankings(
     status_code=status.HTTP_201_CREATED,
     summary="Registrar nova pontuação",
 )
-async def create_ranking_entry(payload: RankingEntryCreate) -> RankingEntryResponse:
-    entry_id = str(uuid.uuid4())
+async def create_ranking_entry(
+    payload: RankingEntryCreate,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> RankingEntryResponse:
     norm_slug = normalize_slug(payload.game_slug)
-
-    # Verifica se o usuário já tem registro nesse jogo para atualizar ou adicionar
-    existing = next(
-        (
-            e
-            for e in ranking_store
-            if e.username.lower() == payload.username.lower()
-            and normalize_slug(e.game_slug) == norm_slug
-        ),
-        None,
+    existing = await db.scalar(
+        select(RankingEntry).where(
+            func.lower(RankingEntry.username) == payload.username.lower(),
+            RankingEntry.game_slug == norm_slug,
+        )
     )
 
     if existing:
@@ -200,92 +104,63 @@ async def create_ranking_entry(payload: RankingEntryCreate) -> RankingEntryRespo
             existing.achieved_at = datetime.now(UTC)
         target_entry = existing
     else:
-        new_entry = RankingStoreEntry(
-            id=entry_id,
-            user_id=str(payload.user_id),
+        target_entry = RankingEntry(
+            user_id=payload.user_id,
             username=payload.username,
-            game_slug=payload.game_slug,
+            game_slug=norm_slug,
             score=payload.score,
             duration_ms=payload.duration_ms,
-            achieved_at=datetime.now(UTC),
             matches_played=1,
             win_rate="100%",
         )
-        ranking_store.append(new_entry)
-        target_entry = new_entry
+        db.add(target_entry)
 
-    # Calcula posição no jogo
-    same_game_sorted = sorted(
-        [e for e in ranking_store if normalize_slug(e.game_slug) == norm_slug],
-        key=lambda x: (-x.score, x.duration_ms),
-    )
+    await db.commit()
+    await db.refresh(target_entry)
 
-    pos = next(
-        (
-            index
-            for index, item in enumerate(same_game_sorted, start=1)
-            if item.id == target_entry.id
-        ),
-        1,
+    position_query = (
+        select(func.count())
+        .select_from(RankingEntry)
+        .where(
+            RankingEntry.game_slug == norm_slug,
+            (RankingEntry.score > target_entry.score)
+            | (
+                (RankingEntry.score == target_entry.score)
+                & (RankingEntry.duration_ms < target_entry.duration_ms)
+            ),
+        )
     )
-
-    return RankingEntryResponse(
-        id=target_entry.id,
-        position=pos,
-        user_id=target_entry.user_id,
-        username=target_entry.username,
-        game_slug=target_entry.game_slug,
-        game_name=GAME_NAMES.get(
-            target_entry.game_slug,
-            target_entry.game_slug.replace("-", " ").title(),
-        ),
-        score=target_entry.score,
-        duration_ms=target_entry.duration_ms,
-        duration_formatted=format_duration(target_entry.duration_ms),
-        achieved_at=target_entry.achieved_at,
-        matches_played=target_entry.matches_played,
-        win_rate=target_entry.win_rate,
-    )
+    position = (await db.scalar(position_query) or 0) + 1
+    return to_response(target_entry, position)
 
 
 @router.get("/summary", response_model=RankingSummary)
-async def get_ranking_summary() -> RankingSummary:
-
-    sorted_all = sorted(
-        ranking_store,
-        key=lambda x: -x.score,
-    )
-
-    top_3: list[RankingEntryResponse] = []
-
-    for pos, item in enumerate(sorted_all[:3], start=1):
-        slug = item.game_slug
-
-        top_3.append(
-            RankingEntryResponse(
-                id=item.id,
-                position=pos,
-                user_id=item.user_id,
-                username=item.username,
-                game_slug=slug,
-                game_name=GAME_NAMES.get(
-                    slug,
-                    slug.replace("-", " ").title(),
-                ),
-                score=item.score,
-                duration_ms=item.duration_ms,
-                duration_formatted=format_duration(item.duration_ms),
-                achieved_at=item.achieved_at,
-                matches_played=item.matches_played,
-                win_rate=item.win_rate,
-            )
+async def get_ranking_summary(db: AsyncSession = Depends(get_db)) -> RankingSummary:  # noqa: B008
+    sorted_entries = (
+        await db.scalars(
+            select(RankingEntry).order_by(RankingEntry.score.desc()).limit(3)
         )
-
-    highest = sorted_all[0].score if sorted_all else 0
+    ).all()
+    total = await db.scalar(select(func.count()).select_from(RankingEntry)) or 0
+    highest = await db.scalar(select(func.max(RankingEntry.score))) or 0
+    popular_game_slug = await db.scalar(
+        select(RankingEntry.game_slug)
+        .group_by(RankingEntry.game_slug)
+        .order_by(func.count().desc())
+        .limit(1)
+    )
+    top_3 = [
+        to_response(item, position)
+        for position, item in enumerate(sorted_entries, start=1)
+    ]
 
     return RankingSummary(
-        total_entries=len(ranking_store),
+        total_entries=total,
         top_players=top_3,
-        most_popular_game="Jogo da Memória",
+        most_popular_game=(
+            GAME_NAMES.get(popular_game_slug, popular_game_slug)
+            if popular_game_slug
+            else "Nenhum jogo"
+        ),
         highest_score=highest,
     )

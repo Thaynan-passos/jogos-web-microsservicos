@@ -187,6 +187,35 @@ function App() {
   const [rankings, setRankings] = useState<RankingEntry[]>(DEFAULT_RANKINGS)
 
   useEffect(() => {
+    const accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY)
+    if (!accessToken) return
+
+    async function validateSession() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/users/me`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (!response.ok) {
+          sessionStorage.removeItem(ACCESS_TOKEN_KEY)
+          sessionStorage.removeItem(USERNAME_KEY)
+          setCurrentUsername('Jogador')
+          setIsAuthenticated(false)
+          setAuthMode('login')
+          return
+        }
+
+        const user = await response.json()
+        if (typeof user?.username === 'string') {
+          sessionStorage.setItem(USERNAME_KEY, user.username)
+          setCurrentUsername(user.username)
+        }
+      } catch {}
+    }
+
+    void validateSession()
+  }, [])
+
+  useEffect(() => {
     async function fetchGames() {
       try {
         const response = await fetch(`${GAME_API_URL}/games`)

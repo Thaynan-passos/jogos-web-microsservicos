@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class RankingEntryCreate(BaseModel):
-    user_id: UUID | str = Field(default_factory=uuid4)
+    user_id: UUID = Field(default_factory=uuid4)
     username: str = Field(min_length=2, max_length=50)
     game_slug: str = Field(min_length=2, max_length=50)
     score: int = Field(ge=0)

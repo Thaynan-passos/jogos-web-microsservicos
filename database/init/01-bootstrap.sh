@@ -22,3 +22,12 @@ SQL
 
 psql --username "$POSTGRES_USER" --dbname game_service --file /database/schemas/game-service.sql
 psql --username "$POSTGRES_USER" --dbname rank_service --file /database/schemas/rank-service.sql
+
+psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<'SQL'
+CREATE TABLE compose_bootstrap_status (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  completed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO compose_bootstrap_status (id) VALUES (1);
+SQL

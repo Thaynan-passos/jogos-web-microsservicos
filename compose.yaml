@@ -28,10 +28,10 @@ services:
       - ./database/init:/docker-entrypoint-initdb.d:ro
       - ./database/schemas:/database/schemas:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d postgres && test \"$$(psql -U \"$${POSTGRES_USER}\" -d postgres -qtAX -c \"SELECT to_regclass('public.compose_bootstrap_status')\")\" = \"compose_bootstrap_status\" && psql -U \"$${POSTGRES_USER}\" -d postgres -qtAX -c \"SELECT 1 FROM compose_bootstrap_status WHERE id = 1\" | grep -q '^1$'"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   user-service:
     build:
@@ -61,6 +61,16 @@ services:
   rank-service:
     build:
       context: ./services/rank-service
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      POSTGRES_USER: rank_service
+      POSTGRES_PASSWORD: ${RANK_SERVICE_DB_PASSWORD:?Configure RANK_SERVICE_DB_PASSWORD in .env}
+      POSTGRES_DB: rank_service
+      POSTGRES_SERVER: postgres
+      POSTGRES_PORT: 5432
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     ports:
       - "${RANK_SERVICE_PORT:-8003}:8000"
