@@ -7,15 +7,19 @@ import { QuickRanking } from './components/QuickRanking.tsx'
 import { LeaderboardView } from './components/LeaderboardView.tsx'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1').replace(/\/$/, '')
+const GAME_API_URL = (import.meta.env.VITE_GAME_API_URL ?? 'http://localhost:8002/api/v1').replace(/\/$/, '')
 const RANK_API_URL = (import.meta.env.VITE_RANK_API_URL ?? 'http://localhost:8003/api/v1').replace(/\/$/, '')
 const RECOVERY_API_URL = (import.meta.env.VITE_RECOVERY_API_URL ?? 'http://localhost:8004/api/v1').replace(/\/$/, '')
 
 const ACCESS_TOKEN_KEY = 'playground_access_token'
 const USERNAME_KEY = 'playground_username'
 
-const games: { id: GameId; icon: string; title: string; description: string; players: string }[] = [
+type GameCard = { id: GameId; slug: string; icon: string; title: string; description: string; players: string }
+
+const localGames: GameCard[] = [
   {
     id: 'tic-tac-toe',
+    slug: 'jogo-da-velha',
     icon: '⭕',
     title: 'Jogo da Velha',
     description: 'Clássico, rápido e perfeito para dois.',
@@ -23,6 +27,7 @@ const games: { id: GameId; icon: string; title: string; description: string; pla
   },
   {
     id: 'memory',
+    slug: 'jogo-da-memoria',
     icon: '🧠',
     title: 'Jogo da Memória',
     description: 'Encontre todos os pares de cartas.',
@@ -30,12 +35,19 @@ const games: { id: GameId; icon: string; title: string; description: string; pla
   },
   {
     id: 'rps',
+    slug: 'pedra-papel-tesoura',
     icon: '✊',
     title: 'Pedra, Papel e Tesoura',
     description: 'Escolha sua jogada e desafie o computador.',
     players: 'Contra o computador',
   },
 ]
+
+const gameMetadata: Record<string, Omit<GameCard, 'slug' | 'title' | 'description'>> = {
+  'jogo-da-velha': { id: 'tic-tac-toe', icon: '⭕', players: '2 jogadores' },
+  'jogo-da-memoria': { id: 'memory', icon: '🧠', players: '1 jogador' },
+  'pedra-papel-tesoura': { id: 'rps', icon: '✊', players: 'Contra o computador' },
+}
 
 const winningLines = [
   [0, 1, 2],
@@ -144,15 +156,17 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('games')
   const [registrationNotice, setRegistrationNotice] = useState('')
 
-  // Login form state
+  // Estado do formulário de login
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [loginError, setLoginError] = useState('')
 
-  // Game state
+  // Estado dos jogos
+  const [games, setGames] = useState<GameCard[]>(localGames)
   const [activeGame, setActiveGame] = useState<GameId>('tic-tac-toe')
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [board, setBoard] = useState<Array<Player | null>>(Array(9).fill(null))
   const [turn, setTurn] = useState<Player>('X')
   const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 })
@@ -169,8 +183,39 @@ function App() {
   const [rpsResult, setRpsResult] = useState('')
   const [rpsScore, setRpsScore] = useState({ player: 0, computer: 0 })
 
-  // Ranking state
+  // Estado do ranking
   const [rankings, setRankings] = useState<RankingEntry[]>(DEFAULT_RANKINGS)
+
+  useEffect(() => {
+    async function fetchGames() {
+      try {
+        const response = await fetch(`${GAME_API_URL}/games`)
+        if (!response.ok) return
+
+        const data: unknown = await response.json()
+        if (!Array.isArray(data)) return
+
+        const availableGames = data.flatMap((item) => {
+          if (typeof item !== 'object' || item === null || !('slug' in item)) return []
+          const slug = item.slug
+          const metadata = typeof slug === 'string' ? gameMetadata[slug] : undefined
+          if (!metadata || !('name' in item) || !('description' in item)) return []
+          return [{
+            ...metadata,
+            slug,
+            title: typeof item.name === 'string' ? item.name : slug,
+            description: typeof item.description === 'string' ? item.description : '',
+          }]
+        })
+
+        if (availableGames.length > 0) setGames(availableGames)
+      } catch {
+        // Mantém o catálogo local quando o game-service estiver indisponível.
+      }
+    }
+
+    fetchGames()
+  }, [])
 
   // Carregar rankings do backend se disponível
   useEffect(() => {
@@ -261,6 +306,61 @@ function App() {
     })
   }
 
+  async function startGameSession(gameId: GameId) {
+    const game = games.find((item) => item.id === gameId)
+    if (!game) return
+
+    try {
+      const response = await fetch(`${GAME_API_URL}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ game_slug: game.slug }),
+      })
+      if (!response.ok) return
+
+      const payload: unknown = await response.json()
+      if (typeof payload === 'object' && payload !== null && 'id' in payload && typeof payload.id === 'string') {
+        setActiveSessionId(payload.id)
+      }
+    } catch {
+      // O jogo continua disponível mesmo quando o registro da sessão está offline.
+    }
+  }
+
+  async function finishGameSession(result: Record<string, unknown>) {
+    if (!activeSessionId) return
+
+    try {
+      await fetch(`${GAME_API_URL}/sessions/${activeSessionId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ result }),
+      })
+    } finally {
+      setActiveSessionId(null)
+    }
+  }
+
+  async function abandonGameSession() {
+    if (!activeSessionId) return
+
+    try {
+      await fetch(`${GAME_API_URL}/sessions/${activeSessionId}/abandon`, { method: 'POST' })
+    } finally {
+      setActiveSessionId(null)
+    }
+  }
+
+  async function selectGame(gameId: GameId) {
+    if (gameId === activeGame) {
+      if (!activeSessionId) await startGameSession(gameId)
+      return
+    }
+    await abandonGameSession()
+    setActiveGame(gameId)
+    await startGameSession(gameId)
+  }
+
   const winner = winningLines
     .map((line) => (board[line[0]] && board[line[0]] === board[line[1]] && board[line[0]] === board[line[2]] ? board[line[0]] : null))
     .find(Boolean)
@@ -327,6 +427,7 @@ function App() {
 
   function playCell(index: number) {
     if (board[index] || winner || isDraw) return
+    if (!activeSessionId) void startGameSession('tic-tac-toe')
 
     const nextBoard = [...board]
     nextBoard[index] = turn
@@ -344,28 +445,35 @@ function App() {
 
     if (gameWinner) {
       setScores((current) => ({ ...current, [gameWinner]: current[gameWinner] + 1 }))
+      void finishGameSession({ winner: gameWinner, board: nextBoard })
       submitScore('tic-tac-toe', (scores.X + 1) * 60)
     } else if (nextBoard.every(Boolean)) {
       setScores((current) => ({ ...current, draws: current.draws + 1 }))
+      void finishGameSession({ winner: null, board: nextBoard })
     } else {
       setTurn(turn === 'X' ? 'O' : 'X')
     }
   }
 
-  function resetTicTacToe() {
+  async function resetTicTacToe() {
+    await abandonGameSession()
     setBoard(Array(9).fill(null))
     setTurn('X')
+    await startGameSession('tic-tac-toe')
   }
 
-  function resetMemory() {
+  async function resetMemory() {
+    await abandonGameSession()
     setCards(createDeck())
     setFlipped([])
     setMatched([])
     setMoves(0)
+    await startGameSession('memory')
   }
 
   function flipCard(index: number) {
     if (flipped.length === 2 || flipped.includes(index) || matched.includes(index)) return
+    if (!activeSessionId) void startGameSession('memory')
 
     const nextFlipped = [...flipped, index]
     setFlipped(nextFlipped)
@@ -379,6 +487,7 @@ function App() {
         if (nextMatched.length === cards.length) {
           // Concluiu todos os pares
           const memoryScore = Math.max(100, 1000 - (moves + 1) * 35)
+          void finishGameSession({ moves: moves + 1, matchedPairs: cards.length / 2 })
           submitScore('memory', memoryScore, 25000)
         }
       } else {
@@ -388,6 +497,7 @@ function App() {
   }
 
   function playRps(playerChoice: string) {
+    if (!activeSessionId) void startGameSession('rps')
     const options = ['Pedra', 'Papel', 'Tesoura']
     const cpuChoice = getComputerMove(options)
     setChoice(playerChoice)
@@ -784,14 +894,14 @@ function App() {
                 <span className="eyebrow">ESCOLHA SEU JOGO</span>
                 <h2>O que vamos jogar?</h2>
               </div>
-              <span className="game-count">03 JOGOS DISPONÍVEIS</span>
+              <span className="game-count">{String(games.length).padStart(2, '0')} JOGOS DISPONÍVEIS</span>
             </div>
             <div className="game-picker">
               {games.map((game, index) => (
                 <button
                   key={game.id}
                   className={`game-card ${activeGame === game.id ? 'selected' : ''}`}
-                  onClick={() => setActiveGame(game.id)}
+                  onClick={() => void selectGame(game.id)}
                   aria-pressed={activeGame === game.id}
                 >
                   <span className={`game-icon game-icon-${index}`}>{game.icon}</span>
