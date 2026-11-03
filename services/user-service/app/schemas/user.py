@@ -10,6 +10,13 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class UserUpdate(BaseModel):
+    username: str | None = Field(default=None, min_length=3, max_length=50)
+    email: EmailStr | None = None
+    is_active: bool | None = None
+    is_admin: bool | None = None
+
+
 class UserLogin(BaseModel):
     username: str = Field(min_length=1, description="Username or email")
     password: str = Field(min_length=1)

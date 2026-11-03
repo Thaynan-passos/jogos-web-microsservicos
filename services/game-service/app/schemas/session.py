@@ -14,6 +14,11 @@ class SessionResult(BaseModel):
     result: dict[str, Any] = Field(default_factory=dict)
 
 
+class SessionUpdate(BaseModel):
+    status: Literal["in_progress", "completed", "abandoned"] | None = None
+    result: dict[str, Any] | None = None
+
+
 class SessionResponse(BaseModel):
     id: uuid.UUID
     game_slug: str

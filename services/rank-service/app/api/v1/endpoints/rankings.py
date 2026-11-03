@@ -1,13 +1,15 @@
 from datetime import UTC, datetime
+from uuid import UUID
 
 from app.db.session import get_db
 from app.models.ranking import RankingEntry
 from app.schemas.ranking import (
     RankingEntryCreate,
     RankingEntryResponse,
+    RankingEntryUpdate,
     RankingSummary,
 )
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -164,3 +166,62 @@ async def get_ranking_summary(db: AsyncSession = Depends(get_db)) -> RankingSumm
         ),
         highest_score=highest,
     )
+
+
+@router.get("/{entry_id}", response_model=RankingEntryResponse)
+async def get_ranking_entry(
+    entry_id: UUID,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> RankingEntryResponse:
+    entry = await db.get(RankingEntry, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Pontuação não encontrada")
+    position = await ranking_position(entry, db)
+    return to_response(entry, position)
+
+
+@router.put("/{entry_id}", response_model=RankingEntryResponse)
+async def update_ranking_entry(
+    entry_id: UUID,
+    payload: RankingEntryUpdate,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> RankingEntryResponse:
+    entry = await db.get(RankingEntry, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Pontuação não encontrada")
+    values = payload.model_dump(exclude_unset=True)
+    if "game_slug" in values:
+        values["game_slug"] = normalize_slug(values["game_slug"])
+    for field, value in values.items():
+        setattr(entry, field, value)
+    await db.commit()
+    await db.refresh(entry)
+    return to_response(entry, await ranking_position(entry, db))
+
+
+@router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_ranking_entry(
+    entry_id: UUID,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> None:
+    entry = await db.get(RankingEntry, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Pontuação não encontrada")
+    await db.delete(entry)
+    await db.commit()
+
+
+async def ranking_position(entry: RankingEntry, db: AsyncSession) -> int:
+    position_query = (
+        select(func.count())
+        .select_from(RankingEntry)
+        .where(
+            RankingEntry.game_slug == entry.game_slug,
+            (RankingEntry.score > entry.score)
+            | (
+                (RankingEntry.score == entry.score)
+                & (RankingEntry.duration_ms < entry.duration_ms)
+            ),
+        )
+    )
+    return (await db.scalar(position_query) or 0) + 1

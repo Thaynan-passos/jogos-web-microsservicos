@@ -12,6 +12,15 @@ class RankingEntryCreate(BaseModel):
     duration_ms: int = Field(default=0, ge=0)
 
 
+class RankingEntryUpdate(BaseModel):
+    username: str | None = Field(default=None, min_length=2, max_length=50)
+    game_slug: str | None = Field(default=None, min_length=2, max_length=50)
+    score: int | None = Field(default=None, ge=0)
+    duration_ms: int | None = Field(default=None, ge=0)
+    matches_played: int | None = Field(default=None, ge=1)
+    win_rate: str | None = Field(default=None, min_length=1, max_length=10)
+
+
 class RankingEntryResponse(BaseModel):
     id: str
     position: int

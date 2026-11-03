@@ -34,3 +34,15 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def get_admin_user(current_user: CurrentUser) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a gerentes",
+        )
+    return current_user
+
+
+AdminUser = Annotated[User, Depends(get_admin_user)]
