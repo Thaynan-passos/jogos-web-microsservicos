@@ -5,8 +5,33 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${API_GATEWAY_PORT:-8080}:80"
+    volumes:
+      - ./api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      user-service:
+        condition: service_healthy
+      game-service:
+        condition: service_healthy
+      rank-service:
+        condition: service_healthy
+      recovery-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,8 +74,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "${USER_SERVICE_PORT:-8001}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -72,8 +95,6 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
-    ports:
-      - "${RANK_SERVICE_PORT:-8003}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -95,8 +116,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "${GAME_SERVICE_PORT:-8002}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -115,8 +134,6 @@ services:
     depends_on:
       user-service:
         condition: service_healthy
-    ports:
-      - "${RECOVERY_SERVICE_PORT:-8004}:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
