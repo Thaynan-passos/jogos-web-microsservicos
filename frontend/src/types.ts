@@ -1,5 +1,5 @@
 export type AuthMode = 'login' | 'register' | 'recovery'
-export type ViewMode = 'games' | 'leaderboard'
+export type ViewMode = 'games' | 'leaderboard' | 'manager'
 
 export type GameId = 'tic-tac-toe' | 'memory' | 'rps'
 export type Player = 'X' | 'O'

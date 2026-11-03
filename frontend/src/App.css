@@ -128,6 +128,164 @@
   padding: 45px 0 0;
 }
 
+.manager-view {
+  padding: 48px 0 20px;
+}
+
+.manager-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.manager-heading h1 {
+  margin: 7px 0 6px;
+  color: var(--ink);
+  font-size: 34px;
+  letter-spacing: -1.6px;
+}
+
+.manager-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.manager-notice,
+.manager-error {
+  padding: 11px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.manager-notice {
+  background: #e9f8ef;
+  color: #26734b;
+}
+.manager-error {
+  background: #fff0ef;
+  color: #a23c39;
+}
+
+.manager-tabs {
+  display: flex;
+  gap: 7px;
+  margin: 24px 0 14px;
+  overflow-x: auto;
+}
+
+.manager-tabs button {
+  padding: 9px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.manager-tabs button.active {
+  border-color: var(--purple);
+  background: #f7f4ff;
+  color: var(--purple);
+}
+.manager-panel {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.manager-panel-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.manager-panel-heading h2 {
+  margin: 5px 0 0;
+  font-size: 21px;
+  letter-spacing: -0.7px;
+}
+.manager-panel-heading strong {
+  color: var(--purple);
+  font-size: 22px;
+}
+.manager-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.manager-form input,
+.manager-form select {
+  min-width: 150px;
+  flex: 1;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+.manager-form label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.manager-form button,
+.manager-table-wrap button {
+  padding: 8px 10px;
+  border: 1px solid #d8cef4;
+  border-radius: 7px;
+  background: #f8f5ff;
+  color: var(--purple);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.manager-table-wrap {
+  overflow-x: auto;
+}
+.manager-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 650px;
+}
+.manager-table-wrap th {
+  color: #91899c;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-align: left;
+  text-transform: uppercase;
+}
+.manager-table-wrap td,
+.manager-table-wrap th {
+  padding: 12px 9px;
+  border-bottom: 1px solid #f0edf4;
+  vertical-align: middle;
+}
+.manager-table-wrap td {
+  color: var(--muted);
+  font-size: 12px;
+}
+.manager-table-wrap td:first-child {
+  color: var(--ink);
+  font-weight: 700;
+}
+.manager-table-wrap td:last-child {
+  white-space: nowrap;
+}
+.manager-table-wrap td button + button {
+  margin-left: 6px;
+}
+
 .section-heading {
   display: flex;
   align-items: end;
@@ -173,7 +331,10 @@
   color: var(--ink);
   text-align: left;
   cursor: pointer;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .game-card:hover {
@@ -343,7 +504,9 @@
   color: var(--ink);
   font: 750 39px/1 var(--sans);
   cursor: pointer;
-  transition: background 130ms ease, transform 130ms ease;
+  transition:
+    background 130ms ease,
+    transform 130ms ease;
 }
 
 .tic-cell:not(:disabled):hover {
@@ -395,7 +558,9 @@
   font-size: 22px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 160ms ease, background 160ms ease;
+  transition:
+    transform 160ms ease,
+    background 160ms ease;
 }
 
 .memory-card:not(:disabled):hover {
@@ -455,7 +620,9 @@
   font: inherit;
   font-size: 11px;
   cursor: pointer;
-  transition: border-color 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease;
 }
 
 .rps-choice:hover,
@@ -628,8 +795,7 @@
   flex-direction: column;
   padding: 0 max(28px, calc((100vw - 1100px) / 2));
   background:
-    radial-gradient(ellipse at 12% 66%, #f0ebff 0, #f0ebff00 38%),
-    #fbfaff;
+    radial-gradient(ellipse at 12% 66%, #f0ebff 0, #f0ebff00 38%), #fbfaff;
 }
 
 .login-topbar {
@@ -813,7 +979,9 @@
   color: var(--ink);
   font: inherit;
   font-size: 12px;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .login-form input::placeholder {
@@ -879,7 +1047,9 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 150ms ease, transform 150ms ease;
+  transition:
+    background 150ms ease,
+    transform 150ms ease;
 }
 
 .login-submit:not(:disabled):hover {
@@ -1040,7 +1210,6 @@
     font-size: 10px;
   }
 }
-
 
 /* ==========================================================================
    NOVOS ESTILOS: AUTENTICAÇÃO (CADASTRO / RECUPERAÇÃO), RANKING E LEADERBOARD
@@ -1223,7 +1392,9 @@
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 12px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .quick-ranking-item:hover {

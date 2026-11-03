@@ -1,15 +1,16 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import './App.css'
 import type { AuthMode, GameId, Player, RankingEntry, ViewMode } from './types.ts'
 import { RegisterCard } from './components/RegisterCard.tsx'
 import { RecoveryCard } from './components/RecoveryCard.tsx'
 import { QuickRanking } from './components/QuickRanking.tsx'
 import { LeaderboardView } from './components/LeaderboardView.tsx'
+import { ManagerView } from './components/ManagerView.tsx'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001/api/v1').replace(/\/$/, '')
-const GAME_API_URL = (import.meta.env.VITE_GAME_API_URL ?? 'http://localhost:8002/api/v1').replace(/\/$/, '')
-const RANK_API_URL = (import.meta.env.VITE_RANK_API_URL ?? 'http://localhost:8003/api/v1').replace(/\/$/, '')
-const RECOVERY_API_URL = (import.meta.env.VITE_RECOVERY_API_URL ?? 'http://localhost:8004/api/v1').replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api/user').replace(/\/$/, '')
+const GAME_API_URL = (import.meta.env.VITE_GAME_API_URL ?? '/api/game').replace(/\/$/, '')
+const RANK_API_URL = (import.meta.env.VITE_RANK_API_URL ?? '/api/rank').replace(/\/$/, '')
+const RECOVERY_API_URL = (import.meta.env.VITE_RECOVERY_API_URL ?? '/api/recovery').replace(/\/$/, '')
 
 const ACCESS_TOKEN_KEY = 'playground_access_token'
 const USERNAME_KEY = 'playground_username'
@@ -155,6 +156,7 @@ function App() {
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [viewMode, setViewMode] = useState<ViewMode>('games')
   const [registrationNotice, setRegistrationNotice] = useState('')
+  const [isManager, setIsManager] = useState(false)
 
   // Estado do formulário de login
   const [username, setUsername] = useState('')
@@ -200,6 +202,7 @@ function App() {
           sessionStorage.removeItem(USERNAME_KEY)
           setCurrentUsername('Jogador')
           setIsAuthenticated(false)
+          setIsManager(false)
           setAuthMode('login')
           return
         }
@@ -209,14 +212,14 @@ function App() {
           sessionStorage.setItem(USERNAME_KEY, user.username)
           setCurrentUsername(user.username)
         }
-      } catch {}
+        setIsManager(user?.is_admin === true)
+      } catch { }
     }
 
     void validateSession()
   }, [])
 
-  useEffect(() => {
-    async function fetchGames() {
+  const fetchGames = useCallback(async () => {
       try {
         const response = await fetch(`${GAME_API_URL}/games`)
         if (!response.ok) return
@@ -237,14 +240,13 @@ function App() {
           }]
         })
 
-        if (availableGames.length > 0) setGames(availableGames)
+        window.setTimeout(() => setGames(availableGames), 0)
       } catch {
         // Mantém o catálogo local quando o game-service estiver indisponível.
       }
-    }
-
-    fetchGames()
   }, [])
+
+  useEffect(() => { void fetchGames() }, [fetchGames])
 
   // Carregar rankings do backend se disponível
   useEffect(() => {
@@ -305,10 +307,10 @@ function App() {
         return prev.map((e) =>
           e.id === existing.id
             ? {
-                ...e,
-                score: Math.max(e.score, score),
-                matchesPlayed: e.matchesPlayed + 1,
-              }
+              ...e,
+              score: Math.max(e.score, score),
+              matchesPlayed: e.matchesPlayed + 1,
+            }
             : e,
         )
       }
@@ -322,8 +324,8 @@ function App() {
           gameSlug === 'tic-tac-toe'
             ? 'Jogo da Velha'
             : gameSlug === 'memory'
-            ? 'Jogo da Memória'
-            : 'Pedra, Papel e Tesoura',
+              ? 'Jogo da Memória'
+              : 'Pedra, Papel e Tesoura',
         score,
         durationMs,
         durationFormatted: `${Math.round(durationMs / 1000)}s`,
@@ -335,9 +337,9 @@ function App() {
     })
   }
 
-  async function startGameSession(gameId: GameId) {
+  async function startGameSession(gameId: GameId): Promise<boolean> {
     const game = games.find((item) => item.id === gameId)
-    if (!game) return
+    if (!game) return false
 
     try {
       const response = await fetch(`${GAME_API_URL}/sessions`, {
@@ -345,15 +347,15 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ game_slug: game.slug }),
       })
-      if (!response.ok) return
+      if (!response.ok) return false
 
       const payload: unknown = await response.json()
       if (typeof payload === 'object' && payload !== null && 'id' in payload && typeof payload.id === 'string') {
         setActiveSessionId(payload.id)
+        return true
       }
-    } catch {
-      // O jogo continua disponível mesmo quando o registro da sessão está offline.
-    }
+    } catch { }
+    return false
   }
 
   async function finishGameSession(result: Record<string, unknown>) {
@@ -386,8 +388,7 @@ function App() {
       return
     }
     await abandonGameSession()
-    setActiveGame(gameId)
-    await startGameSession(gameId)
+    if (await startGameSession(gameId)) setActiveGame(gameId)
   }
 
   const winner = winningLines
@@ -433,6 +434,15 @@ function App() {
       sessionStorage.setItem(ACCESS_TOKEN_KEY, payload.access_token)
       sessionStorage.setItem(USERNAME_KEY, trimmedUser)
       setCurrentUsername(trimmedUser)
+      try {
+        const userResponse = await fetch(`${API_BASE_URL}/users/me`, {
+          headers: { Authorization: `Bearer ${payload.access_token}` },
+        })
+        const user = await userResponse.json()
+        setIsManager(user?.is_admin === true)
+      } catch {
+        setIsManager(false)
+      }
       setPassword('')
       setIsAuthenticated(true)
     } catch (error) {
@@ -450,6 +460,7 @@ function App() {
     sessionStorage.removeItem(ACCESS_TOKEN_KEY)
     sessionStorage.removeItem(USERNAME_KEY)
     setPassword('')
+    setIsManager(false)
     setIsAuthenticated(false)
     setAuthMode('login')
   }
@@ -465,8 +476,8 @@ function App() {
     const gameWinner = winningLines
       .map((line) =>
         nextBoard[line[0]] &&
-        nextBoard[line[0]] === nextBoard[line[1]] &&
-        nextBoard[line[0]] === nextBoard[line[2]]
+          nextBoard[line[0]] === nextBoard[line[1]] &&
+          nextBoard[line[0]] === nextBoard[line[2]]
           ? nextBoard[line[0]]
           : null,
       )
@@ -552,12 +563,14 @@ function App() {
   }
 
   function renderGame() {
+    if (!games.some((game) => game.id === activeGame)) return null
+
     if (activeGame === 'tic-tac-toe') {
       const status = winner
         ? `Jogador ${winner} venceu!`
         : isDraw
-        ? 'Deu velha! Que tal outra?'
-        : `Vez do jogador ${turn}`
+          ? 'Deu velha! Que tal outra?'
+          : `Vez do jogador ${turn}`
       return (
         <section className="game-panel" aria-label="Jogo da Velha">
           <div className="game-heading">
@@ -640,9 +653,8 @@ function App() {
               return (
                 <button
                   key={card.id}
-                  className={`memory-card ${isVisible ? 'revealed' : ''} ${
-                    matched.includes(index) ? 'matched' : ''
-                  }`}
+                  className={`memory-card ${isVisible ? 'revealed' : ''} ${matched.includes(index) ? 'matched' : ''
+                    }`}
                   onClick={() => flipCard(index)}
                   disabled={isVisible || flipped.length === 2}
                   aria-label={isVisible ? `Carta ${card.face}` : `Revelar carta ${index + 1}`}
@@ -872,6 +884,15 @@ function App() {
           >
             🎮 Jogos
           </button>
+          {isManager && (
+            <button
+              className={`nav-tab-btn ${viewMode === 'manager' ? 'active' : ''}`}
+              type="button"
+              onClick={() => setViewMode('manager')}
+            >
+              ⚙ Gerência
+            </button>
+          )}
           <button
             className={`nav-tab-btn ${viewMode === 'leaderboard' ? 'active' : ''}`}
             type="button"
@@ -888,7 +909,15 @@ function App() {
         </div>
       </header>
 
-      {viewMode === 'leaderboard' ? (
+      {viewMode === 'manager' ? (
+        <ManagerView
+          token={sessionStorage.getItem(ACCESS_TOKEN_KEY) ?? ''}
+          userApiUrl={API_BASE_URL}
+          gameApiUrl={GAME_API_URL}
+          rankApiUrl={RANK_API_URL}
+          onGamesChanged={fetchGames}
+        />
+      ) : viewMode === 'leaderboard' ? (
         <LeaderboardView
           entries={rankings}
           onBackToGames={() => setViewMode('games')}

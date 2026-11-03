@@ -3,7 +3,7 @@ from typing import Annotated
 from app.db.session import get_db
 from app.models.game import Game
 from app.schemas.game import GameCreate, GameResponse, GameUpdate
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,10 +23,14 @@ async def create_game(payload: GameCreate, db: DatabaseSession) -> Game:
 
 
 @router.get("", response_model=list[GameResponse])
-async def list_games(db: AsyncSession = Depends(get_db)) -> list[Game]:  # noqa: B008
-    result = await db.scalars(
-        select(Game).where(Game.enabled.is_(True)).order_by(Game.name)
-    )
+async def list_games(
+    include_disabled: bool = Query(False),
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+) -> list[Game]:
+    query = select(Game).order_by(Game.name)
+    if not include_disabled:
+        query = query.where(Game.enabled.is_(True))
+    result = await db.scalars(query)
     return list(result.all())
 
 
