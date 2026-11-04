@@ -511,6 +511,15 @@ function App() {
     await startGameSession('memory')
   }
 
+  async function resetRps() {
+    await abandonGameSession()
+    setRpsScore({ player: 0, computer: 0 })
+    setChoice(null)
+    setComputerChoice(null)
+    setRpsResult('')
+    await startGameSession('rps')
+  }
+
   function flipCard(index: number) {
     if (flipped.length === 2 || flipped.includes(index) || matched.includes(index)) return
     if (!activeSessionId) void startGameSession('memory')
@@ -537,6 +546,12 @@ function App() {
   }
 
   function playRps(playerChoice: string) {
+    let currentScore = rpsScore
+    if (currentScore.player >= 3 || currentScore.computer >= 3) {
+      currentScore = { player: 0, computer: 0 }
+      setRpsScore(currentScore)
+    }
+
     if (!activeSessionId) void startGameSession('rps')
     const options = ['Pedra', 'Papel', 'Tesoura']
     const cpuChoice = getComputerMove(options)
@@ -550,15 +565,28 @@ function App() {
       (playerChoice === 'Papel' && cpuChoice === 'Pedra') ||
       (playerChoice === 'Tesoura' && cpuChoice === 'Papel')
     ) {
-      setRpsResult('Você venceu esta rodada!')
-      setRpsScore((current) => {
-        const newPlayerScore = current.player + 1
-        submitScore('rps', newPlayerScore * 50)
-        return { ...current, player: newPlayerScore }
-      })
+      const nextPlayerScore = currentScore.player + 1
+      const updated = { ...currentScore, player: nextPlayerScore }
+      setRpsScore(updated)
+      submitScore('rps', nextPlayerScore * 50)
+
+      if (nextPlayerScore >= 3) {
+        setRpsResult('🏆 Você venceu a melhor de 3 contra o computador!')
+        void finishGameSession({ winner: 'player', finalScore: updated })
+      } else {
+        setRpsResult(`Você venceu esta rodada! (${nextPlayerScore}/3)`)
+      }
     } else {
-      setRpsResult('O computador venceu esta rodada.')
-      setRpsScore((current) => ({ ...current, computer: current.computer + 1 }))
+      const nextCpuScore = currentScore.computer + 1
+      const updated = { ...currentScore, computer: nextCpuScore }
+      setRpsScore(updated)
+
+      if (nextCpuScore >= 3) {
+        setRpsResult('O computador venceu a melhor de 3! Clique em recomeçar.')
+        void finishGameSession({ winner: 'computer', finalScore: updated })
+      } else {
+        setRpsResult(`O computador venceu esta rodada. (${nextCpuScore}/3)`)
+      }
     }
   }
 
@@ -681,9 +709,12 @@ function App() {
             <span className="eyebrow">VOCÊ CONTRA O COMPUTADOR</span>
             <h2>Pedra, Papel e Tesoura</h2>
             <p className="game-status" aria-live="polite">
-              {rpsResult || 'Faça sua escolha para começar!'}
+              {rpsResult || 'Primeiro a 3 vitórias vence a melhor de 3!'}
             </p>
           </div>
+          <button className="secondary-button" onClick={resetRps}>
+            ↻ <span>Recomeçar</span>
+          </button>
         </div>
         <div className="rps-score">
           <span>
