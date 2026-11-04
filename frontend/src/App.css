@@ -234,10 +234,17 @@
 .manager-form label {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   padding: 9px;
   color: var(--muted);
   font-size: 12px;
+}
+.manager-form label input[type='checkbox'] {
+  width: 14px;
+  min-width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  margin: 0;
 }
 .manager-form button,
 .manager-table-wrap button {

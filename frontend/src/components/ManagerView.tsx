@@ -20,7 +20,27 @@ async function request<T>(url: string, token: string, options?: RequestInit): Pr
     ...options,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options?.headers },
   })
-  if (!response.ok) throw new Error((await response.text()) || 'Não foi possível concluir a operação')
+  if (!response.ok) {
+    const body = await response.text()
+    let payload: unknown
+    try {
+      payload = JSON.parse(body)
+    } catch {
+      payload = undefined
+    }
+    if (typeof payload === 'object' && payload !== null && 'detail' in payload) {
+      const detail = payload.detail
+      if (typeof detail === 'string') throw new Error(detail)
+      if (Array.isArray(detail)) {
+        const messages = detail.map((item) => {
+          if (typeof item === 'object' && item !== null && 'msg' in item && typeof item.msg === 'string') return item.msg
+          return String(item)
+        })
+        throw new Error(messages.join(', '))
+      }
+    }
+    throw new Error(body || 'Não foi possível concluir a operação')
+  }
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
@@ -63,6 +83,7 @@ export function ManagerView({ token, userApiUrl, gameApiUrl, rankApiUrl, onGames
   async function run(action: () => Promise<void>, message: string) {
     try {
       setError('')
+      setNotice('')
       await action()
       setNotice(message)
       await loadAll()

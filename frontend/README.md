@@ -2,23 +2,28 @@
 
 Interface do Playground em React, TypeScript e Vite. A tela inicial solicita
 login ao User Service; após a autenticação, o usuário pode acessar os jogos
-locais: Jogo da Velha, Jogo da Memória e Pedra, Papel e Tesoura.
+locais: Jogo da Velha, Jogo da Memória e Pedra, Papel e Tesoura. As partidas
+são registradas no Game Service e as pontuações no Rank Service.
 
 ## Executar em desenvolvimento
 
-Com o User Service iniciado, instale as dependências e execute o Vite:
+Para executar somente o frontend em desenvolvimento, instale as dependências e
+execute o Vite:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Por padrão, o frontend chama `http://localhost:8001/api/v1/auth/login`.
-Para usar outra URL base da API, defina `VITE_API_BASE_URL` no ambiente do
-Vite, por exemplo `http://localhost:8001/api/v1`.
+Ao executar com Docker Compose, o frontend usa o API Gateway através das rotas
+`/api/user`, `/api/game`, `/api/rank` e `/api/recovery`. Em desenvolvimento
+fora do Compose, configure as URLs com `VITE_API_BASE_URL`,
+`VITE_GAME_API_URL`, `VITE_RANK_API_URL` e `VITE_RECOVERY_API_URL`, apontando
+para as respectivas APIs.
 
-O token de acesso é mantido em `sessionStorage` durante a sessão da aba. O
-frontend não persiste partidas ou pontuações nos serviços.
+O token de acesso é mantido em `sessionStorage` durante a sessão da aba. As
+partidas são persistidas como sessões no Game Service e as pontuações são
+persistidas no Rank Service.
 
 ## Verificações
 

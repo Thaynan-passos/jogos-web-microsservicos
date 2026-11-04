@@ -7,6 +7,20 @@ interface RecoveryCardProps {
 
 type RecoveryStep = 'request' | 'reset'
 
+function getErrorMessage(data: unknown, fallback: string): string {
+  if (typeof data === 'object' && data !== null && 'detail' in data) {
+    const detail = data.detail
+    if (typeof detail === 'string') return detail
+    if (Array.isArray(detail)) {
+      return detail.map((item) => {
+        if (typeof item === 'object' && item !== null && 'msg' in item && typeof item.msg === 'string') return item.msg
+        return String(item)
+      }).join(', ')
+    }
+  }
+  return fallback
+}
+
 export function RecoveryCard({ recoveryApiUrl, onSwitchToLogin }: RecoveryCardProps) {
   const [step, setStep] = useState<RecoveryStep>('request')
   const [email, setEmail] = useState('')
@@ -38,15 +52,15 @@ export function RecoveryCard({ recoveryApiUrl, onSwitchToLogin }: RecoveryCardPr
         body: JSON.stringify({ email: trimmedEmail }),
       })
 
-      const data = await response.json()
+      const data: unknown = await response.json()
 
       if (!response.ok) {
-        setErrorMessage(data.detail || 'Não foi possível solicitar a recuperação. Verifique os dados.')
+        setErrorMessage(getErrorMessage(data, 'Não foi possível solicitar a recuperação. Verifique os dados.'))
         return
       }
 
       setSuccessMessage('Solicitação enviada! Copie o token de validação abaixo para redefinir a senha.')
-      if (data.reset_token) {
+      if (typeof data === 'object' && data !== null && 'reset_token' in data && typeof data.reset_token === 'string') {
         setToken(data.reset_token)
       }
       setStep('reset')
@@ -90,10 +104,10 @@ export function RecoveryCard({ recoveryApiUrl, onSwitchToLogin }: RecoveryCardPr
         }),
       })
 
-      const data = await response.json()
+      const data: unknown = await response.json()
 
       if (!response.ok) {
-        setErrorMessage(data.detail || 'Falha ao redefinir a senha. O token pode estar expirado ou incorreto.')
+        setErrorMessage(getErrorMessage(data, 'Falha ao redefinir a senha. O token pode estar expirado ou incorreto.'))
         return
       }
 

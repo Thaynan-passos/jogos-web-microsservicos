@@ -3,7 +3,7 @@ from app.core.config import settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title=settings.PROJECT_NAME)
+app = FastAPI(title=settings.PROJECT_NAME, root_path="/api/recovery")
 
 app.add_middleware(
     CORSMiddleware,

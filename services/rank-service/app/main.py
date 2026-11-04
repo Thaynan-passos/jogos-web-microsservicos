@@ -51,7 +51,7 @@ async def lifespan(_: FastAPI):
     await close_db()
 
 
-app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
+app = FastAPI(title=settings.PROJECT_NAME, root_path="/api/rank", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
