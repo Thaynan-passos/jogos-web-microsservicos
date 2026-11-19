@@ -30,13 +30,15 @@ def create_access_token(
         to_encode.update(extra_claims)
     return jwt.encode(
         to_encode,
-        settings.SECRET_KEY,
+        settings.JWT_SECRET_KEY,
         algorithm=settings.ALGORITHM,
     )
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return jwt.decode(
+            token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
     except JWTError as exc:
         raise ValueError("Invalid or expired access token") from exc

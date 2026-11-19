@@ -68,7 +68,7 @@ services:
       POSTGRES_DB: user_service
       POSTGRES_SERVER: postgres
       POSTGRES_PORT: 5432
-      SECRET_KEY: ${SECRET_KEY:?Configure SECRET_KEY in .env}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Configure JWT_SECRET_KEY in .env}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
     depends_on:
@@ -128,7 +128,7 @@ services:
       context: ./services/recovery-service
     restart: unless-stopped
     environment:
-      SECRET_KEY: ${SECRET_KEY:?Configure SECRET_KEY in .env}
+      RECOVERY_TOKEN_SECRET_KEY: ${RECOVERY_TOKEN_SECRET_KEY:?Configure RECOVERY_TOKEN_SECRET_KEY in .env}
       ALGORITHM: ${ALGORITHM:-HS256}
       USER_SERVICE_URL: http://user-service:8000
     depends_on:

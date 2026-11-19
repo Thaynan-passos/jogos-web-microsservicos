@@ -31,7 +31,33 @@ O Docker Compose inicia o frontend, o API Gateway, o PostgreSQL e os quatro micr
 
 O frontend autentica usuários pelo User Service, permite cadastro de novos usuários, recuperação de senha com tokens de segurança, exibe um **Rank Básico** na tela inicial de jogos e uma tela completa de **Leaderboard Detalhado** (com métricas, filtros por jogo, busca e tempos de conclusão).
 
+### Dependências entre os microsserviços
+
+Cada serviço mantém seu próprio banco (`user_service`, `game_service` e `rank_service`) e credenciais próprias no servidor PostgreSQL compartilhado. Não há chaves estrangeiras entre esses bancos. Os identificadores de usuários e jogos usados fora do serviço de origem são valores UUID ou slugs; a existência do registro referenciado não é garantida por uma restrição de banco entre serviços.
+
+```text
+Frontend → User Service       (cadastro, login e identidade)
+Frontend → Game Service       (catálogo e sessões; armazena user_id e game_slug)
+Frontend → Rank Service       (pontuações e leaderboard; armazena user_id e game_slug)
+Frontend → Recovery Service  (solicita e valida token de recuperação)
+Recovery Service → User Service (redefine a senha pelo endpoint interno)
+
+User Service  → PostgreSQL / user_service
+Game Service  → PostgreSQL / game_service
+Rank Service  → PostgreSQL / rank_service
+```
+
+- **User Service** é a fonte dos usuários e emite os tokens JWT. Game e Rank recebem identificadores de usuário nos dados das requisições; não consultam diretamente o banco de usuários para validá-los.
+- **Game Service** é dono do catálogo e das sessões. Uma sessão guarda o slug do jogo e, opcionalmente, o UUID do usuário. A referência do jogo é validada dentro do próprio banco do Game Service; a de usuário não tem validação cruzada.
+- **Rank Service** é dono das pontuações. Guarda UUID do usuário, nome de usuário e slug do jogo como dados locais, sem chave estrangeira para User ou Game. Assim, alterações ou remoções nesses serviços não se propagam automaticamente para o ranking.
+- **Recovery Service** não tem banco próprio. Gera e verifica tokens de recuperação; para redefinir a senha, chama `POST /api/v1/auth/reset-password-internal` no User Service. Se o User Service estiver indisponível, a redefinição não pode ser concluída.
+- **Dependência operacional no Compose:** Recovery Service aguarda o User Service ficar saudável. O API Gateway aguarda os quatro serviços, e o frontend aguarda o Gateway. Portanto, no Compose atual, a indisponibilidade do Recovery também impede que o Gateway e o frontend sejam considerados prontos, embora Game e Rank não dependam funcionalmente dele.
+
+Game e Rank não têm chamadas diretas entre si nem para User no fluxo implementado: o frontend coordena as chamadas às APIs. Isso mantém os bancos isolados, mas significa que a consistência de nomes e identificadores enviados entre serviços depende dos contratos usados pelo cliente.
+
 ## Executar localmente com Docker Compose
+
+Para preparar o uso do AWS Secrets Manager em tarefas Amazon ECS/Fargate, consulte [Implantação AWS](docs/implantacao-aws.md). A execução local continua usando o arquivo `.env`.
 
 ### 1. Pré-requisitos
 
@@ -63,7 +89,7 @@ No macOS/Linux:
 cp .env.example .env
 ```
 
-Abra `.env` e substitua `SECRET_KEY=replace-with-a-random-32-byte-secret` por uma chave aleatória. Os valores de senha do exemplo servem apenas para desenvolvimento local; use senhas fortes e exclusivas fora desse ambiente. Não compartilhe nem versione o arquivo `.env`.
+Preencha no `.env` as senhas e as chaves que estão em branco. Gere valores aleatórios e diferentes para cada senha, `JWT_SECRET_KEY` e `RECOVERY_TOKEN_SECRET_KEY`; por exemplo, execute `python -c "import secrets; print(secrets.token_urlsafe(32))"` várias vezes e copie cada resultado para uma variável distinta. As chaves JWT e de recuperação são separadas; trocá-las invalida os tokens já emitidos da finalidade correspondente. Não compartilhe nem versione o arquivo `.env`.
 
 As portas padrão são:
 - Frontend: `5173`
@@ -93,13 +119,7 @@ docker compose ps
   - Tela de Login, Cadastro de novos usuários e Recuperação de senha.
   - Tela principal com Jogos e **Rank Básico**.
   - Aba **Leaderboard**: Ranking complexo com filtros, estatísticas e busca.
-- **Acesso de gerente para demonstrar o CRUD**:
-  - Usuário: `Gerente`
-  - E-mail: `Gerente@playground.com`
-  - Senha: `Gerente@123`
-
-  - Aba **Gerência**. Ela permite criar, consultar, editar e remover usuários, jogos, sessões e rankings.
-  - Esse usuário é criado pela migração do User Service na primeira inicialização.
+- **Aba Gerência**: permite criar, consultar, editar e remover usuários, jogos, sessões e rankings. Não há mais usuário gerente ou senha de demonstração; a migração remove a conta demonstrativa de bancos já existentes. Para habilitar a aba, cadastre uma conta e atribua a ela `is_admin = true` no banco `user_service` usando uma conexão administrativa.
 
 - **API Gateway**: [http://localhost:8080/health](http://localhost:8080/health)
 - **User Service**:

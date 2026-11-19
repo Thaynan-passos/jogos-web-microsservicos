@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     )
 
     PROJECT_NAME: str = "Password Recovery Service"
-    SECRET_KEY: str = "recovery-service-default-secret-key-32-chars-min"
+    RECOVERY_TOKEN_SECRET_KEY: str
     ALGORITHM: str = "HS256"
     RECOVERY_TOKEN_EXPIRE_MINUTES: int = 15
     USER_SERVICE_URL: str = "http://user-service:8000"

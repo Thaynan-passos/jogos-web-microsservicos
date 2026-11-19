@@ -27,13 +27,17 @@ def create_recovery_token(email: str) -> str:
         "exp": expire,
         "iat": now,
     }
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return jwt.encode(
+        to_encode, settings.RECOVERY_TOKEN_SECRET_KEY, algorithm=settings.ALGORITHM
+    )
 
 
 def decode_recovery_token(token: str) -> str:
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            token,
+            settings.RECOVERY_TOKEN_SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
         )
         if payload.get("type") != "password_recovery":
             raise HTTPException(
