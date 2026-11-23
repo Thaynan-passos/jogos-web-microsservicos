@@ -4,6 +4,18 @@ O código dos serviços já lê credenciais e chaves de variáveis de ambiente. 
 
 Esta configuração é um modelo para **Amazon ECS com AWS Fargate**. O Docker Compose continua sendo o fluxo local; ele usa o `.env` e não consulta a AWS.
 
+O User Service não provisiona gerente no startup. Depois que a task iniciar e aplicar as migrações, um operador autorizado deve executar `python -m app.cli create-admin` interativamente dentro da task User Service usando o mecanismo seguro de execução do ambiente. O comando pede a senha sem ecoá-la, bloqueia se já existir qualquer gerente e serializa tentativas concorrentes no banco. Restrinja o acesso de execução da task a operadores autorizados; não passe a senha como argumento ou variável de ambiente.
+
+Defina `SEED_DEMO_DATA=false` nas tasks de produção. O Rank Service só carrega amostras quando a opção está habilitada e `ENVIRONMENT=development`; essas linhas recebem `is_demo=true` e ficam fora das rotas e métricas do ranking real.
+
+## Rede e exposição dos serviços
+
+Em produção, publique somente a camada de entrada. Coloque o Application Load Balancer em sub-redes públicas e os serviços ECS em sub-redes privadas, com `assignPublicIp=DISABLED`. O ALB deve encaminhar para o frontend; o Nginx do frontend encaminha as chamadas `/api/` ao API Gateway por descoberta de serviço privada. Não associe o API Gateway, User, Game, Rank, Recovery ou PostgreSQL a listener público ou IP público.
+
+Configure os security groups com origem por camada: frontend recebe porta 80 somente do security group do ALB; API Gateway recebe porta 80 somente do frontend; microsserviços recebem porta 8000 do API Gateway. User Service também precisa aceitar porta 8000 dos security groups de Game, Rank e Recovery para validação JWT e recuperação de senha. O banco aceita porta 5432 somente dos security groups dos serviços que o utilizam. Não use regras de entrada `0.0.0.0/0` nos grupos dos serviços internos ou do banco.
+
+No Compose local, frontend e API Gateway são publicados apenas em `127.0.0.1`; os microsserviços e o banco ficam na rede `backend` marcada como interna, sem portas publicadas. Recovery recebe uma segunda rede sem publicação de portas para poder enviar e-mails via SMTP.
+
 ## Criar conjuntos separados por ambiente
 
 O template [secrets-manager.yaml](../deploy/aws/secrets-manager.yaml) cria seis segredos independentes para um ambiente: senha de administrador do PostgreSQL, senhas de banco dos serviços User, Game e Rank, chave de assinatura JWT e chave de assinatura dos tokens de recuperação. Cada valor é gerado aleatoriamente pelo Secrets Manager; o template não contém valores secretos. Recursos usam `DeletionPolicy: Retain` para evitar apagar os segredos junto com a stack.
@@ -72,7 +84,8 @@ Use o mesmo padrão para os outros contêineres:
 
 - Game Service: injete `POSTGRES_PASSWORD` usando a saída `GameDatabasePasswordArn`.
 - Rank Service: injete `POSTGRES_PASSWORD` usando a saída `RankDatabasePasswordArn`.
-- Recovery Service: injete `RECOVERY_TOKEN_SECRET_KEY` usando `RecoveryTokenSigningKeyArn` e configure `USER_SERVICE_URL` com o endereço interno do User Service.
+- Recovery Service: injete `RECOVERY_TOKEN_SECRET_KEY` usando `RecoveryTokenSigningKeyArn`, `USER_SERVICE_SHARED_SECRET` com o segredo compartilhado `RECOVERY_SERVICE_SECRET`, configure `USER_SERVICE_URL` com o endereço interno do User Service e defina as variáveis `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` e `SMTP_FROM_EMAIL` para entrega dos tokens por e-mail.
+- User Service: injete o mesmo `RECOVERY_SERVICE_SECRET` como variável `RECOVERY_SERVICE_SECRET` para autenticar chamadas internas de redefinição de senha.
 - PostgreSQL local em ECS: injete `POSTGRES_PASSWORD` usando `PostgresAdminPasswordArn`. Para produção, prefira um PostgreSQL gerenciado (por exemplo, Amazon RDS) e não rode o contêiner de banco do Compose como banco de produção.
 
 Como cada segredo contém um único valor string, use diretamente o ARN retornado pelo CloudFormation, sem sufixo de chave JSON. O Fargate precisa de plataforma `1.3.0` ou posterior para injetar o valor completo do segredo.

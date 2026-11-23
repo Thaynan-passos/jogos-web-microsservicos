@@ -8,7 +8,7 @@ class RecoveryRequest(BaseModel):
 class RecoveryRequestResponse(BaseModel):
     message: str
     email: EmailStr
-    reset_token: str
+    reset_token: str | None = None
     expires_in_minutes: int
 
 

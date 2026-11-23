@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from app.api.auth import AdminPrincipal, CurrentPrincipal
 from app.db.session import get_db
 from app.models.ranking import RankingEntry
 from app.schemas.ranking import (
@@ -11,6 +12,7 @@ from app.schemas.ranking import (
 )
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/rankings", tags=["rankings"])
@@ -49,7 +51,7 @@ async def list_rankings(
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> list[RankingEntryResponse]:
-    query = select(RankingEntry)
+    query = select(RankingEntry).where(RankingEntry.is_demo.is_(False))
     if game_slug and game_slug != "all":
         query = query.where(RankingEntry.game_slug == normalize_slug(game_slug))
     query = query.order_by(RankingEntry.score.desc(), RankingEntry.duration_ms).limit(
@@ -83,17 +85,21 @@ def to_response(item: RankingEntry, position: int) -> RankingEntryResponse:
 @router.post(
     "/",
     response_model=RankingEntryResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Registrar nova pontuação",
+    status_code=status.HTTP_200_OK,
+    summary="Registrar ou atualizar pontuação",
 )
 async def create_ranking_entry(
     payload: RankingEntryCreate,
+    principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> RankingEntryResponse:
+    user_id = payload.user_id if principal.is_admin and payload.user_id else principal.id
+    username = payload.username if principal.is_admin else principal.username
     norm_slug = normalize_slug(payload.game_slug)
     existing = await db.scalar(
         select(RankingEntry).where(
-            func.lower(RankingEntry.username) == payload.username.lower(),
+            RankingEntry.is_demo.is_(False),
+            func.lower(RankingEntry.username) == username.lower(),
             RankingEntry.game_slug == norm_slug,
         )
     )
@@ -107,8 +113,8 @@ async def create_ranking_entry(
         target_entry = existing
     else:
         target_entry = RankingEntry(
-            user_id=payload.user_id,
-            username=payload.username,
+            user_id=user_id,
+            username=username,
             game_slug=norm_slug,
             score=payload.score,
             duration_ms=payload.duration_ms,
@@ -117,13 +123,42 @@ async def create_ranking_entry(
         )
         db.add(target_entry)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        target_entry = await db.scalar(
+            select(RankingEntry).where(
+                RankingEntry.is_demo.is_(False),
+                func.lower(RankingEntry.username) == username.lower(),
+                RankingEntry.game_slug == norm_slug,
+            )
+        )
+        if target_entry is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Conflito ao registrar a pontuação",
+            ) from None
+        target_entry.matches_played += 1
+        if payload.score > target_entry.score:
+            target_entry.score = payload.score
+            target_entry.duration_ms = payload.duration_ms
+            target_entry.achieved_at = datetime.now(UTC)
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Conflito ao registrar a pontuação",
+            ) from None
     await db.refresh(target_entry)
 
     position_query = (
         select(func.count())
         .select_from(RankingEntry)
         .where(
+            RankingEntry.is_demo.is_(False),
             RankingEntry.game_slug == norm_slug,
             (RankingEntry.score > target_entry.score)
             | (
@@ -140,13 +175,29 @@ async def create_ranking_entry(
 async def get_ranking_summary(db: AsyncSession = Depends(get_db)) -> RankingSummary:  # noqa: B008
     sorted_entries = (
         await db.scalars(
-            select(RankingEntry).order_by(RankingEntry.score.desc()).limit(3)
+            select(RankingEntry)
+            .where(RankingEntry.is_demo.is_(False))
+            .order_by(RankingEntry.score.desc())
+            .limit(3)
         )
     ).all()
-    total = await db.scalar(select(func.count()).select_from(RankingEntry)) or 0
-    highest = await db.scalar(select(func.max(RankingEntry.score))) or 0
+    total = (
+        await db.scalar(
+            select(func.count())
+            .select_from(RankingEntry)
+            .where(RankingEntry.is_demo.is_(False))
+        )
+        or 0
+    )
+    highest = (
+        await db.scalar(
+            select(func.max(RankingEntry.score)).where(RankingEntry.is_demo.is_(False))
+        )
+        or 0
+    )
     popular_game_slug = await db.scalar(
         select(RankingEntry.game_slug)
+        .where(RankingEntry.is_demo.is_(False))
         .group_by(RankingEntry.game_slug)
         .order_by(func.count().desc())
         .limit(1)
@@ -174,8 +225,11 @@ async def get_ranking_entry(
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> RankingEntryResponse:
     entry = await db.get(RankingEntry, entry_id)
-    if entry is None:
-        raise HTTPException(status_code=404, detail="Pontuação não encontrada")
+    if entry is None or entry.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pontuação não encontrada",
+        )
     position = await ranking_position(entry, db)
     return to_response(entry, position)
 
@@ -184,17 +238,28 @@ async def get_ranking_entry(
 async def update_ranking_entry(
     entry_id: UUID,
     payload: RankingEntryUpdate,
+    _: AdminPrincipal,
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> RankingEntryResponse:
     entry = await db.get(RankingEntry, entry_id)
-    if entry is None:
-        raise HTTPException(status_code=404, detail="Pontuação não encontrada")
+    if entry is None or entry.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pontuação não encontrada",
+        )
     values = payload.model_dump(exclude_unset=True)
     if "game_slug" in values:
         values["game_slug"] = normalize_slug(values["game_slug"])
     for field, value in values.items():
         setattr(entry, field, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A pontuação conflita com um registro existente",
+        ) from None
     await db.refresh(entry)
     return to_response(entry, await ranking_position(entry, db))
 
@@ -202,11 +267,15 @@ async def update_ranking_entry(
 @router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_ranking_entry(
     entry_id: UUID,
+    _: AdminPrincipal,
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> None:
     entry = await db.get(RankingEntry, entry_id)
-    if entry is None:
-        raise HTTPException(status_code=404, detail="Pontuação não encontrada")
+    if entry is None or entry.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pontuação não encontrada",
+        )
     await db.delete(entry)
     await db.commit()
 
@@ -216,6 +285,7 @@ async def ranking_position(entry: RankingEntry, db: AsyncSession) -> int:
         select(func.count())
         .select_from(RankingEntry)
         .where(
+            RankingEntry.is_demo.is_(False),
             RankingEntry.game_slug == entry.game_slug,
             (RankingEntry.score > entry.score)
             | (

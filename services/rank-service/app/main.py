@@ -7,7 +7,7 @@ from app.db.session import AsyncSessionLocal, close_db, engine
 from app.models.ranking import RankingEntry
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 INITIAL_ENTRIES = [
     ("LucasMestre", "tic-tac-toe", 450, 42000, 18, "89%"),
@@ -22,10 +22,45 @@ INITIAL_ENTRIES = [
 async def initialize_database() -> None:
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        await connection.execute(
+            text(
+                "ALTER TABLE rank_entries "
+                "ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE"
+            )
+        )
+        await connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_rank_user_game_demo "
+                "ON rank_entries (lower(username), game_slug, is_demo)"
+            )
+        )
+        await connection.execute(text("DROP INDEX IF EXISTS uq_rank_user_game"))
+        await connection.execute(
+            text(
+                "UPDATE rank_entries SET is_demo = TRUE WHERE is_demo = FALSE AND ("
+                "(username = 'LucasMestre' AND game_slug = 'tic-tac-toe') OR "
+                "(username = 'AnaMemoryQueen' AND game_slug = 'memory') OR "
+                "(username = 'GabrielTactics' AND game_slug = 'rps') OR "
+                "(username = 'Beatriz_Gamer' AND game_slug = 'tic-tac-toe') OR "
+                "(username = 'DiegoCards' AND game_slug = 'memory') OR "
+                "(username = 'Mariana_RPS' AND game_slug = 'rps')"
+                ")"
+            )
+        )
+
+    if (
+        not settings.SEED_DEMO_DATA
+        or settings.ENVIRONMENT.strip().lower() != "development"
+    ):
+        return
 
     async with AsyncSessionLocal() as session:
-        total = await session.scalar(select(func.count()).select_from(RankingEntry))
-        if total:
+        demo_total = await session.scalar(
+            select(func.count())
+            .select_from(RankingEntry)
+            .where(RankingEntry.is_demo.is_(True))
+        )
+        if demo_total:
             return
 
         session.add_all(
@@ -37,6 +72,7 @@ async def initialize_database() -> None:
                     duration_ms=duration_ms,
                     matches_played=matches_played,
                     win_rate=win_rate,
+                    is_demo=True,
                 )
                 for username, game_slug, score, duration_ms, matches_played, win_rate in INITIAL_ENTRIES
             ]
@@ -55,7 +91,7 @@ app = FastAPI(title=settings.PROJECT_NAME, root_path="/api/rank", lifespan=lifes
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

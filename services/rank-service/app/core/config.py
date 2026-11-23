@@ -12,6 +12,11 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Rank Service"
     ENVIRONMENT: str = "development"
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    JWT_SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    USER_SERVICE_URL: str = "http://user-service:8000"
+    SEED_DEMO_DATA: bool = False
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str

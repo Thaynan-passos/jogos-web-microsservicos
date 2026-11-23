@@ -2,6 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
+from app.api.auth import AdminPrincipal, CurrentPrincipal, Principal
 from app.db.session import get_db
 from app.models.game import Game, GameSession
 from app.schemas.session import (
@@ -20,6 +21,7 @@ DatabaseSession = Annotated[AsyncSession, Depends(get_db)]
 
 @router.get("", response_model=list[SessionResponse])
 async def list_sessions(
+    _: AdminPrincipal,
     db: DatabaseSession,
     limit: int = 100,
 ) -> list[GameSession]:
@@ -42,6 +44,7 @@ async def get_session_or_404(session_id: uuid.UUID, db: AsyncSession) -> GameSes
 @router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def start_session(
     payload: SessionCreate,
+    principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> GameSession:
     game = await db.scalar(
@@ -53,7 +56,10 @@ async def start_session(
             detail="Jogo não encontrado ou desativado",
         )
 
-    session = GameSession(game_slug=game.slug, user_id=payload.user_id)
+    session = GameSession(
+        game_slug=game.slug,
+        user_id=(payload.user_id if principal.is_admin else principal.id),
+    )
     db.add(session)
     await db.commit()
     await db.refresh(session)
@@ -63,18 +69,23 @@ async def start_session(
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(
     session_id: uuid.UUID,
+    principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> GameSession:
-    return await get_session_or_404(session_id, db)
+    session = await get_session_or_404(session_id, db)
+    ensure_session_access(session, principal)
+    return session
 
 
 @router.post("/{session_id}/complete", response_model=SessionResponse)
 async def complete_session(
     session_id: uuid.UUID,
     payload: SessionResult,
+    principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> GameSession:
     session = await get_session_or_404(session_id, db)
+    ensure_session_access(session, principal)
     if session.status != "in_progress":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -92,9 +103,11 @@ async def complete_session(
 @router.post("/{session_id}/abandon", response_model=SessionResponse)
 async def abandon_session(
     session_id: uuid.UUID,
+    principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ) -> GameSession:
     session = await get_session_or_404(session_id, db)
+    ensure_session_access(session, principal)
     if session.status != "in_progress":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -112,6 +125,7 @@ async def abandon_session(
 async def update_session(
     session_id: uuid.UUID,
     payload: SessionUpdate,
+    _: AdminPrincipal,
     db: DatabaseSession,
 ) -> GameSession:
     session = await get_session_or_404(session_id, db)
@@ -123,7 +137,17 @@ async def update_session(
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_session(session_id: uuid.UUID, db: DatabaseSession) -> None:
+async def delete_session(
+    session_id: uuid.UUID, _: AdminPrincipal, db: DatabaseSession
+) -> None:
     session = await get_session_or_404(session_id, db)
     await db.delete(session)
     await db.commit()
+
+
+def ensure_session_access(session: GameSession, principal: Principal) -> None:
+    if not principal.is_admin and session.user_id != principal.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta sessão pertence a outro usuário",
+        )

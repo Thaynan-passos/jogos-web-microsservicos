@@ -1391,6 +1391,14 @@
   gap: 14px;
 }
 
+.quick-ranking-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
 .quick-ranking-item {
   display: flex;
   align-items: center;

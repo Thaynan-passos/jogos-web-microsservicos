@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from app.db.base import Base
-from sqlalchemy import DateTime, Index, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,6 +25,13 @@ class RankingEntry(Base):
     )
     matches_played: Mapped[int] = mapped_column(Integer, default=1)
     win_rate: Mapped[str] = mapped_column(String(10), default="100%")
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     __table_args__ = (
-        Index("uq_rank_user_game", func.lower(username), game_slug, unique=True),
+        Index(
+            "uq_rank_user_game_demo",
+            func.lower(username),
+            game_slug,
+            is_demo,
+            unique=True,
+        ),
     )

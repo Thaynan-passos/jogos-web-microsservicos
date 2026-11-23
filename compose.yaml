@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5173}:80"
+    networks:
+      - edge
     depends_on:
       api-gateway:
         condition: service_healthy
@@ -21,6 +23,9 @@ services:
       - "127.0.0.1:${API_GATEWAY_PORT:-8080}:80"
     volumes:
       - ./api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - edge
+      - backend
     depends_on:
       user-service:
         condition: service_healthy
@@ -48,6 +53,8 @@ services:
       RANK_SERVICE_DB_PASSWORD: ${RANK_SERVICE_DB_PASSWORD:?Configure RANK_SERVICE_DB_PASSWORD in .env}
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - backend
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d:ro
@@ -63,14 +70,18 @@ services:
       context: ./services/user-service
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:5173","http://127.0.0.1:5173"]}
       POSTGRES_USER: user_service
       POSTGRES_PASSWORD: ${USER_SERVICE_DB_PASSWORD:?Configure USER_SERVICE_DB_PASSWORD in .env}
       POSTGRES_DB: user_service
       POSTGRES_SERVER: postgres
       POSTGRES_PORT: 5432
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Configure JWT_SECRET_KEY in .env}
+      RECOVERY_SERVICE_SECRET: ${RECOVERY_SERVICE_SECRET:?Configure RECOVERY_SERVICE_SECRET in .env}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+    networks:
+      - backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,11 +97,18 @@ services:
       context: ./services/rank-service
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:5173","http://127.0.0.1:5173"]}
       POSTGRES_USER: rank_service
       POSTGRES_PASSWORD: ${RANK_SERVICE_DB_PASSWORD:?Configure RANK_SERVICE_DB_PASSWORD in .env}
       POSTGRES_DB: rank_service
       POSTGRES_SERVER: postgres
       POSTGRES_PORT: 5432
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Configure JWT_SECRET_KEY in .env}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      USER_SERVICE_URL: http://user-service:8000
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+    networks:
+      - backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -108,11 +126,17 @@ services:
     restart: unless-stopped
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-development}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:5173","http://127.0.0.1:5173"]}
       POSTGRES_USER: game_service
       POSTGRES_PASSWORD: ${GAME_SERVICE_DB_PASSWORD:?Configure GAME_SERVICE_DB_PASSWORD in .env}
       POSTGRES_DB: game_service
       POSTGRES_SERVER: postgres
       POSTGRES_PORT: 5432
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Configure JWT_SECRET_KEY in .env}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      USER_SERVICE_URL: http://user-service:8000
+    networks:
+      - backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -128,9 +152,20 @@ services:
       context: ./services/recovery-service
     restart: unless-stopped
     environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:5173","http://127.0.0.1:5173"]}
       RECOVERY_TOKEN_SECRET_KEY: ${RECOVERY_TOKEN_SECRET_KEY:?Configure RECOVERY_TOKEN_SECRET_KEY in .env}
+      USER_SERVICE_SHARED_SECRET: ${RECOVERY_SERVICE_SECRET:?Configure RECOVERY_SERVICE_SECRET in .env}
       ALGORITHM: ${ALGORITHM:-HS256}
       USER_SERVICE_URL: http://user-service:8000
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+    networks:
+      - backend
+      - egress
     depends_on:
       user-service:
         condition: service_healthy
@@ -143,3 +178,9 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  edge:
+  backend:
+    internal: true
+  egress:

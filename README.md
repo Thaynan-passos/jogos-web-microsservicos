@@ -89,15 +89,16 @@ No macOS/Linux:
 cp .env.example .env
 ```
 
-Preencha no `.env` as senhas e as chaves que estão em branco. Gere valores aleatórios e diferentes para cada senha, `JWT_SECRET_KEY` e `RECOVERY_TOKEN_SECRET_KEY`; por exemplo, execute `python -c "import secrets; print(secrets.token_urlsafe(32))"` várias vezes e copie cada resultado para uma variável distinta. As chaves JWT e de recuperação são separadas; trocá-las invalida os tokens já emitidos da finalidade correspondente. Não compartilhe nem versione o arquivo `.env`.
+Preencha no `.env` as senhas e as chaves que estão em branco. Gere valores aleatórios e diferentes para cada senha, `JWT_SECRET_KEY`, `RECOVERY_TOKEN_SECRET_KEY` e `RECOVERY_SERVICE_SECRET`; por exemplo, execute `python -c "import secrets; print(secrets.token_urlsafe(32))"` várias vezes e copie cada resultado para uma variável distinta. As chaves JWT, de recuperação e de comunicação entre serviços são separadas. Não compartilhe nem versione o arquivo `.env`.
 
 As portas padrão são:
 - Frontend: `5173`
 - API Gateway: `8080`
 - PostgreSQL: `5432`
 
-Os serviços internos não são publicados diretamente no host; suas APIs são
-acessadas pelo API Gateway em `http://localhost:8080`.
+Os microsserviços e o banco ficam em uma rede Docker interna, sem portas
+publicadas. Frontend e API Gateway são vinculados somente ao loopback do host;
+as APIs são acessadas pelo Gateway em `http://localhost:8080`.
 
 ### 4. Construir e iniciar os serviços
 
@@ -113,13 +114,23 @@ Na primeira execução, o Docker baixa as imagens e constrói os serviços. Agua
 docker compose ps
 ```
 
+O serviço não cria um gerente automaticamente. Para cadastrar o primeiro, execute o comando interativo abaixo; informe o usuário, e-mail e uma senha exclusiva quando solicitado:
+
+```sh
+docker compose exec -it user-service python -m app.cli create-admin
+```
+
+O comando só funciona enquanto não existir nenhuma conta gerente e exige um terminal interativo. Novos gerentes podem ser cadastrados por uma conta gerente no painel.
+
+As pontuações de demonstração são opcionais e ficam marcadas como demonstração, sem aparecer no ranking real. Para carregá-las em desenvolvimento local, defina `SEED_DEMO_DATA=true` no `.env`; em ambientes diferentes de `development`, elas não são carregadas.
+
 ### 5. Acessar e verificar
 
 - **Frontend**: [http://localhost:5173](http://localhost:5173)
   - Tela de Login, Cadastro de novos usuários e Recuperação de senha.
   - Tela principal com Jogos e **Rank Básico**.
   - Aba **Leaderboard**: Ranking complexo com filtros, estatísticas e busca.
-- **Aba Gerência**: permite criar, consultar, editar e remover usuários, jogos, sessões e rankings. Não há mais usuário gerente ou senha de demonstração; a migração remove a conta demonstrativa de bancos já existentes. Para habilitar a aba, cadastre uma conta e atribua a ela `is_admin = true` no banco `user_service` usando uma conexão administrativa.
+- **Aba Gerência**: permite criar, consultar, editar e remover usuários, jogos, sessões e rankings. Gerentes também podem conceder ou remover o papel de gerente, mantendo pelo menos um gerente ativo. A migração remove a antiga conta de demonstração; contas reais são criadas sem privilégios, exceto quando um gerente explicitamente lhes concede o papel.
 
 - **API Gateway**: [http://localhost:8080/health](http://localhost:8080/health)
 - **User Service**:

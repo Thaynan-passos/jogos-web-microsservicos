@@ -9,11 +9,12 @@ CREATE TABLE rank_entries (
     duration_ms INTEGER NOT NULL DEFAULT 0 CHECK (duration_ms >= 0),
     achieved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     matches_played INTEGER NOT NULL DEFAULT 1 CHECK (matches_played > 0),
-    win_rate VARCHAR(10) NOT NULL DEFAULT '100%'
+    win_rate VARCHAR(10) NOT NULL DEFAULT '100%',
+    is_demo BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE UNIQUE INDEX uq_rank_user_game
-    ON rank_entries (lower(username), game_slug);
+CREATE UNIQUE INDEX uq_rank_user_game_demo
+    ON rank_entries (lower(username), game_slug, is_demo);
 
 CREATE INDEX rank_entries_leaderboard_idx
     ON rank_entries (game_slug, score DESC, duration_ms ASC);

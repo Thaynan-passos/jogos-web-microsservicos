@@ -1,13 +1,21 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     username: str = Field(min_length=3, max_length=50)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+
+
+class AdminUserCreate(UserCreate):
+    is_admin: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -15,6 +23,13 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None
     is_active: bool | None = None
     is_admin: bool | None = None
+
+    @field_validator("username", "email", "is_active", "is_admin")
+    @classmethod
+    def update_values_cannot_be_null(cls, value: Any) -> Any:
+        if value is None:
+            raise ValueError("Este campo não pode ser nulo")
+        return value
 
 
 class UserLogin(BaseModel):
@@ -25,6 +40,7 @@ class UserLogin(BaseModel):
 class UserResetPasswordInternal(BaseModel):
     email: EmailStr
     new_password: str = Field(min_length=8, max_length=128)
+    recovery_token_id: str = Field(min_length=36, max_length=36)
 
 
 class UserBatchRequest(BaseModel):

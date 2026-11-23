@@ -28,7 +28,9 @@ export function QuickRanking({ entries, onOpenFullLeaderboard }: QuickRankingPro
       </div>
 
       <div className="quick-ranking-list">
-        {topThree.map((item, index) => (
+        {topThree.length === 0 ? (
+          <p className="quick-ranking-empty">Ainda não há pontuações reais registradas.</p>
+        ) : topThree.map((item, index) => (
           <div key={item.id} className={`quick-ranking-item rank-pos-${index + 1}`}>
             <div className="quick-ranking-pos">
               <span className="medal-icon">{medals[index] || `#${index + 1}`}</span>

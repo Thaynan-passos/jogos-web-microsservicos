@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "User Service"
     ENVIRONMENT: str = "development"
+    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
 
     # Jwt
     JWT_SECRET_KEY: str
+    RECOVERY_SERVICE_SECRET: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 

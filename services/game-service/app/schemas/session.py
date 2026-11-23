@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SessionCreate(BaseModel):
@@ -17,6 +17,13 @@ class SessionResult(BaseModel):
 class SessionUpdate(BaseModel):
     status: Literal["in_progress", "completed", "abandoned"] | None = None
     result: dict[str, Any] | None = None
+
+    @field_validator("status", "result")
+    @classmethod
+    def update_values_cannot_be_null(cls, value):
+        if value is None:
+            raise ValueError("Este campo não pode ser nulo")
+        return value
 
 
 class SessionResponse(BaseModel):

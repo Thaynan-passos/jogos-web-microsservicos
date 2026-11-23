@@ -59,7 +59,7 @@ export function RecoveryCard({ recoveryApiUrl, onSwitchToLogin }: RecoveryCardPr
         return
       }
 
-      setSuccessMessage('Solicitação enviada! Copie o token de validação abaixo para redefinir a senha.')
+      setSuccessMessage('Solicitação processada. Se o token foi enviado a você, cole-o abaixo para redefinir a senha.')
       if (typeof data === 'object' && data !== null && 'reset_token' in data && typeof data.reset_token === 'string') {
         setToken(data.reset_token)
       }

@@ -73,79 +73,6 @@ function getComputerMove(options: string[]) {
   return options[Math.floor(Math.random() * options.length)]
 }
 
-const DEFAULT_RANKINGS: RankingEntry[] = [
-  {
-    id: 'r1',
-    position: 1,
-    userId: 'u1',
-    username: 'AnaMemoryQueen',
-    gameSlug: 'memory',
-    gameName: 'Jogo da Memória',
-    score: 820,
-    durationMs: 28500,
-    durationFormatted: '28s',
-    achievedAt: '2026-10-30T10:15:00Z',
-    matchesPlayed: 24,
-    winRate: '95%',
-  },
-  {
-    id: 'r2',
-    position: 2,
-    userId: 'u2',
-    username: 'DiegoCards',
-    gameSlug: 'memory',
-    gameName: 'Jogo da Memória',
-    score: 690,
-    durationMs: 34000,
-    durationFormatted: '34s',
-    achievedAt: '2026-10-30T11:45:00Z',
-    matchesPlayed: 19,
-    winRate: '84%',
-  },
-  {
-    id: 'r3',
-    position: 3,
-    userId: 'u3',
-    username: 'LucasMestre',
-    gameSlug: 'tic-tac-toe',
-    gameName: 'Jogo da Velha',
-    score: 450,
-    durationMs: 42000,
-    durationFormatted: '42s',
-    achievedAt: '2026-10-29T16:20:00Z',
-    matchesPlayed: 18,
-    winRate: '89%',
-  },
-  {
-    id: 'r4',
-    position: 4,
-    userId: 'u4',
-    username: 'Beatriz_Gamer',
-    gameSlug: 'tic-tac-toe',
-    gameName: 'Jogo da Velha',
-    score: 390,
-    durationMs: 48000,
-    durationFormatted: '48s',
-    achievedAt: '2026-10-30T09:10:00Z',
-    matchesPlayed: 14,
-    winRate: '78%',
-  },
-  {
-    id: 'r5',
-    position: 5,
-    userId: 'u5',
-    username: 'GabrielTactics',
-    gameSlug: 'rps',
-    gameName: 'Pedra, Papel e Tesoura',
-    score: 380,
-    durationMs: 35000,
-    durationFormatted: '35s',
-    achievedAt: '2026-10-29T18:00:00Z',
-    matchesPlayed: 15,
-    winRate: '80%',
-  },
-]
-
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(
     () => sessionStorage.getItem(ACCESS_TOKEN_KEY) !== null,
@@ -186,7 +113,7 @@ function App() {
   const [rpsScore, setRpsScore] = useState({ player: 0, computer: 0 })
 
   // Estado do ranking
-  const [rankings, setRankings] = useState<RankingEntry[]>(DEFAULT_RANKINGS)
+  const [rankings, setRankings] = useState<RankingEntry[]>([])
 
   useEffect(() => {
     const accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY)
@@ -286,7 +213,10 @@ function App() {
     try {
       await fetch(`${RANK_API_URL}/rankings/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionStorage.getItem(ACCESS_TOKEN_KEY) ?? ''}`,
+        },
         body: JSON.stringify({
           username: userToSave,
           game_slug: gameSlug,
@@ -344,7 +274,10 @@ function App() {
     try {
       const response = await fetch(`${GAME_API_URL}/sessions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionStorage.getItem(ACCESS_TOKEN_KEY) ?? ''}`,
+        },
         body: JSON.stringify({ game_slug: game.slug }),
       })
       if (!response.ok) return false
@@ -364,7 +297,10 @@ function App() {
     try {
       await fetch(`${GAME_API_URL}/sessions/${activeSessionId}/complete`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionStorage.getItem(ACCESS_TOKEN_KEY) ?? ''}`,
+        },
         body: JSON.stringify({ result }),
       })
     } finally {
@@ -376,7 +312,10 @@ function App() {
     if (!activeSessionId) return
 
     try {
-      await fetch(`${GAME_API_URL}/sessions/${activeSessionId}/abandon`, { method: 'POST' })
+      await fetch(`${GAME_API_URL}/sessions/${activeSessionId}/abandon`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionStorage.getItem(ACCESS_TOKEN_KEY) ?? ''}` },
+      })
     } finally {
       setActiveSessionId(null)
     }

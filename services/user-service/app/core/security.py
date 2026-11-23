@@ -27,6 +27,8 @@ def create_access_token(
     )
     to_encode: dict[str, Any] = {"sub": str(subject), "exp": expires_at}
     if extra_claims:
+        if {"sub", "exp"} & extra_claims.keys():
+            raise ValueError("Extra claims cannot replace reserved JWT claims")
         to_encode.update(extra_claims)
     return jwt.encode(
         to_encode,

@@ -7,7 +7,7 @@ app = FastAPI(title=settings.PROJECT_NAME, root_path="/api/recovery")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

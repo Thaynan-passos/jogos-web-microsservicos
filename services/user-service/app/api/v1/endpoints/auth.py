@@ -1,7 +1,12 @@
+import secrets
+from datetime import UTC, datetime
 from typing import Annotated
 
 from app.api.dependencies import DatabaseSession
-from app.core.security import create_access_token
+from app.core.config import settings
+from app.core.security import create_access_token, get_password_hash
+from app.models.recovery_token import ConsumedRecoveryToken
+from app.models.user import User
 from app.schemas.user import (
     Token,
     UserCreate,
@@ -13,10 +18,10 @@ from app.services.user_service import (
     authenticate_user,
     create_user,
     get_user_by_login,
-    update_user_password,
 )
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 router = APIRouter()
@@ -98,11 +103,31 @@ async def login_form(
 async def reset_password_internal(
     payload: UserResetPasswordInternal,
     db: DatabaseSession,
+    service_secret: Annotated[str | None, Header(alias="X-Internal-Secret")] = None,
 ) -> dict[str, str]:
-    user = await update_user_password(db, str(payload.email), payload.new_password)
+    if service_secret is None or not secrets.compare_digest(
+        service_secret, settings.RECOVERY_SERVICE_SECRET
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credencial de serviço inválida",
+        )
+    user = await db.scalar(select(User).where(User.email == str(payload.email)))
     if user is None:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuário não encontrado",
         )
+    db.add(ConsumedRecoveryToken(token_id=payload.recovery_token_id))
+    user.hashed_password = get_password_hash(payload.new_password)
+    user.updated_at = datetime.now(UTC)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Token de recuperação já utilizado",
+        ) from None
     return {"message": "Password successfully updated"}

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class GameCreate(BaseModel):
@@ -14,6 +14,13 @@ class GameUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=100)
     description: str | None = Field(default=None, max_length=500)
     enabled: bool | None = None
+
+    @field_validator("name", "description", "enabled")
+    @classmethod
+    def update_values_cannot_be_null(cls, value):
+        if value is None:
+            raise ValueError("Este campo não pode ser nulo")
+        return value
 
 
 class GameResponse(BaseModel):
