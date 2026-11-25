@@ -7,10 +7,18 @@ import { QuickRanking } from './components/QuickRanking.tsx'
 import { LeaderboardView } from './components/LeaderboardView.tsx'
 import { ManagerView } from './components/ManagerView.tsx'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api/user').replace(/\/$/, '')
-const GAME_API_URL = (import.meta.env.VITE_GAME_API_URL ?? '/api/game').replace(/\/$/, '')
-const RANK_API_URL = (import.meta.env.VITE_RANK_API_URL ?? '/api/rank').replace(/\/$/, '')
-const RECOVERY_API_URL = (import.meta.env.VITE_RECOVERY_API_URL ?? '/api/recovery').replace(/\/$/, '')
+function normalizeApiUrl(rawUrl: string | undefined, fallback: string): string {
+  const cleaned = (rawUrl ?? fallback).replace(/\/$/, '')
+  if (/^https?:\/\//.test(cleaned) && !cleaned.endsWith('/api/v1')) {
+    return `${cleaned}/api/v1`
+  }
+  return cleaned
+}
+
+const API_BASE_URL = normalizeApiUrl(import.meta.env.VITE_API_BASE_URL, '/api/user')
+const GAME_API_URL = normalizeApiUrl(import.meta.env.VITE_GAME_API_URL, '/api/game')
+const RANK_API_URL = normalizeApiUrl(import.meta.env.VITE_RANK_API_URL, '/api/rank')
+const RECOVERY_API_URL = normalizeApiUrl(import.meta.env.VITE_RECOVERY_API_URL, '/api/recovery')
 
 const ACCESS_TOKEN_KEY = 'playground_access_token'
 const USERNAME_KEY = 'playground_username'

@@ -8,6 +8,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
+USER_SERVICE_TIMEOUT_SECONDS = 45.0
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 
@@ -37,7 +39,7 @@ async def get_current_principal(
         ) from None
 
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=USER_SERVICE_TIMEOUT_SECONDS) as client:
             response = await client.get(
                 f"{settings.USER_SERVICE_URL.rstrip('/')}/api/v1/users/me",
                 headers={"Authorization": f"Bearer {token}"},

@@ -1,0 +1,127 @@
+envVarGroups:
+  - name: jogos-shared-config
+    envVars:
+      - key: ALGORITHM
+        value: HS256
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: RECOVERY_SERVICE_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+
+services:
+  - type: web
+    name: jogos-user-service
+    runtime: docker
+    plan: free
+    rootDir: services/user-service
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: jogos-shared-config
+      - key: PORT
+        value: "8000"
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+
+  - type: web
+    name: jogos-game-service
+    runtime: docker
+    plan: free
+    rootDir: services/game-service
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: jogos-shared-config
+      - key: PORT
+        value: "8000"
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: USER_SERVICE_URL
+        fromService:
+          type: web
+          name: jogos-user-service
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: jogos-rank-service
+    runtime: docker
+    plan: free
+    rootDir: services/rank-service
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: jogos-shared-config
+      - key: PORT
+        value: "8000"
+      - key: ENVIRONMENT
+        value: production
+      - key: SEED_DEMO_DATA
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: USER_SERVICE_URL
+        fromService:
+          type: web
+          name: jogos-user-service
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: jogos-recovery-service
+    runtime: docker
+    plan: free
+    rootDir: services/recovery-service
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - fromGroup: jogos-shared-config
+      - key: PORT
+        value: "8000"
+      # Em development, o token é retornado na resposta para testes sem SMTP.
+      # Altere para "production" quando configurar SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD e SMTP_FROM_EMAIL.
+      - key: ENVIRONMENT
+        value: development
+      - key: RECOVERY_TOKEN_SECRET_KEY
+        generateValue: true
+      - key: USER_SERVICE_URL
+        fromService:
+          type: web
+          name: jogos-user-service
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: jogos-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: jogos-user-service
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_GAME_API_URL
+        fromService:
+          type: web
+          name: jogos-game-service
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_RANK_API_URL
+        fromService:
+          type: web
+          name: jogos-rank-service
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_RECOVERY_API_URL
+        fromService:
+          type: web
+          name: jogos-recovery-service
+          envVarKey: RENDER_EXTERNAL_URL

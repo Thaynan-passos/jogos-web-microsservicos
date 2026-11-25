@@ -20,6 +20,7 @@ from jose import JWTError, jwt
 
 logger = logging.getLogger("recovery_service")
 router = APIRouter(prefix="/recovery", tags=["recovery"])
+USER_SERVICE_TIMEOUT_SECONDS = 45.0
 
 
 def create_recovery_token(email: str) -> str:
@@ -155,7 +156,7 @@ async def reset_password(payload: ResetPasswordRequest) -> ResetPasswordResponse
     )
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=USER_SERVICE_TIMEOUT_SECONDS) as client:
             response = await client.post(
                 target_url,
                 json={

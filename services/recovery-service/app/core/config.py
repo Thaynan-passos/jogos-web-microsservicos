@@ -1,3 +1,4 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,7 +13,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
     RECOVERY_TOKEN_SECRET_KEY: str
-    USER_SERVICE_SHARED_SECRET: str
+    USER_SERVICE_SHARED_SECRET: str = Field(
+        validation_alias=AliasChoices(
+            "USER_SERVICE_SHARED_SECRET", "RECOVERY_SERVICE_SECRET"
+        )
+    )
     ALGORITHM: str = "HS256"
     RECOVERY_TOKEN_EXPIRE_MINUTES: int = 15
     USER_SERVICE_URL: str = "http://user-service:8000"
